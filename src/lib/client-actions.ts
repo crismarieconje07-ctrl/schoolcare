@@ -7,15 +7,12 @@ import {
   doc,
   serverTimestamp,
   setDoc,
-  type Firestore,
 } from "firebase/firestore";
 import {
   getDownloadURL,
   ref,
   uploadBytes,
-  type FirebaseStorage,
 } from "firebase/storage";
-import type { User } from "firebase/auth";
 import type { Category } from "./types";
 import type { FirebaseContextState } from "@/firebase";
 
@@ -27,10 +24,11 @@ interface ReportData {
 }
 
 async function uploadPhoto(
-    storage: FirebaseStorage,
+    storage: FirebaseContextState['storage'],
     userId: string,
     file: File
   ): Promise<string> {
+    if (!storage) throw new Error("Storage service is not available.");
     const storageRef = ref(storage, `reports/${userId}/${Date.now()}_${file.name}`);
     const uploadResult = await uploadBytes(storageRef, file);
     return getDownloadURL(uploadResult.ref);
@@ -59,7 +57,7 @@ export async function submitReport(
     await setDoc(newReportRef, {
       id: newReportRef.id,
       userId: user.uid,
-      userDisplayName: userProfile.displayName || user.email || "Anonymous",
+      userDisplayName: userProfile.displayName || userProfile.email || "Anonymous",
       category: values.category,
       roomNumber: values.roomNumber,
       description: values.description,

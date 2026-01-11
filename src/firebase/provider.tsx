@@ -3,12 +3,11 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import type { UserProfile, UserRole } from '@/lib/types';
-
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
@@ -31,7 +30,7 @@ interface FirebaseProviderProps {
     auth: Auth;
     firestore: Firestore;
     storage: FirebaseStorage;
-  }
+}
 
 /**
  * Ensures a user profile exists in Firestore. If not, it creates one.
@@ -72,7 +71,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
     if (!auth || !firestore) {
@@ -84,7 +82,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          // Ensure profile exists and get it, fixing broken sign-ups.
           const profile = await ensureUserProfile(firestore, firebaseUser);
           setUserProfile(profile);
         } catch (e) {
@@ -93,23 +90,20 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           setUserProfile(null);
         }
       } else {
-        // No user is signed in
         setUserProfile(null);
       }
-      // This is the key: loading is false only after the auth state has been confirmed.
       setLoading(false);
-    }, (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setError(error);
+    }, (authError) => {
+        console.error("FirebaseProvider: onAuthStateChanged error:", authError);
+        setError(authError);
         setUser(null);
         setUserProfile(null);
         setLoading(false);
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, [auth, firestore]); 
 
-  // Memoize the context value to prevent unnecessary re-renders.
   const contextValue = useMemo((): FirebaseContextState => ({
       firebaseApp,
       firestore,
@@ -131,11 +125,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
 export const useFirebase = (): FirebaseContextState => {
   const context = useContext(FirebaseContext);
-
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-
   return context;
 };
 
@@ -159,7 +151,6 @@ export const useUser = (): { user: User | null, loading: boolean, error: Error |
   const { user, loading, error } = useFirebase();
   return { user, loading, error };
 };
-
 
 type MemoFirebase <T> = T & {__memo?: boolean};
 
