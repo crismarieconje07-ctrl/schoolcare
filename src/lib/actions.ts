@@ -41,7 +41,7 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     await updateProfile(user, { displayName: values.displayName });
 
     const role =
-      values.email === "admin@schoolfix.com" ? "admin" : "student";
+      values.email === "admin@schoolcare.com" ? "admin" : "student";
 
     const userProfile: UserProfile = {
       uid: user.uid,

@@ -47,7 +47,7 @@ export function SignUpForm() {
     if (result.success) {
       toast({
         title: "Account Created",
-        description: "Welcome to SchoolFix! You can now log in.",
+        description: "Welcome to SchoolCare! You can now log in.",
       });
       router.push("/login");
     } else {

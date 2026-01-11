@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SchoolFix",
+  title: "SchoolCare",
   description: "Simplifying school maintenance reporting.",
 };
 
