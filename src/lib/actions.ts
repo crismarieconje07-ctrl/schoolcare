@@ -132,13 +132,11 @@ const reportSchema = z.object({
 });
 
 
-export async function createReport(formData: FormData) {
+export async function createReport(idToken: string, formData: FormData) {
   try {
     const { firestore, storage } = initializeFirebase();
     await initializeAdminApp();
     
-    const idToken = formData.get('idToken') as string;
-
     if (!idToken) {
       return { success: false, error: "Authentication token is missing. Please log in." };
     }

@@ -130,7 +130,6 @@ export function ReportForm() {
     const idToken = await user.getIdToken();
 
     const formData = new FormData();
-    formData.append('idToken', idToken);
     formData.append('category', values.category);
     formData.append('roomNumber', values.roomNumber);
     formData.append('description', values.description);
@@ -139,7 +138,7 @@ export function ReportForm() {
     }
 
     try {
-        const result = await createReport(formData);
+        const result = await createReport(idToken, formData);
 
         if (result.success) {
             router.push("/dashboard/submit-report/success");
