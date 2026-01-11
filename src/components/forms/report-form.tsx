@@ -48,7 +48,7 @@ export function ReportForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const firebaseState = useFirebase();
-  const { loading: authLoading, user, firestore, storage } = firebaseState;
+  const { loading: authLoading } = firebaseState;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -117,11 +117,12 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !firestore || !storage) {
+    // Final gatekeeper check at the moment of submission
+    if (!firebaseState.user || !firebaseState.firestore || !firebaseState.storage) {
       toast({
         variant: 'destructive',
         title: 'Authentication not ready',
-        description: 'Please wait a moment and try again.',
+        description: 'Please wait a moment for the application to load and try again.',
       });
       return;
     }

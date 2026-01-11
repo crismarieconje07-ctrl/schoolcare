@@ -38,21 +38,30 @@ interface FirebaseProviderProps {
  */
 async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile> {
   const userDocRef = doc(firestore, "users", user.uid);
-  const userDoc = await getDoc(userDocRef);
+  try {
+    const userDoc = await getDoc(userDocRef);
 
-  if (userDoc.exists()) {
-    return userDoc.data() as UserProfile;
-  } else {
-    // Profile doesn't exist, so create it.
-    const role: UserRole = user.email === "admin@schoolcare.com" ? "admin" : "student";
-    const newUserProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || user.email?.split('@')[0] || "Anonymous User",
-      role: role,
-    };
-    await setDoc(userDocRef, newUserProfile);
-    return newUserProfile;
+    if (userDoc.exists()) {
+      // Profile exists, return it.
+      return userDoc.data() as UserProfile;
+    } else {
+      // Profile doesn't exist, so create it.
+      const role: UserRole = user.email === "admin@schoolcare.com" ? "admin" : "student";
+      
+      const newUserProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email?.split('@')[0] || "User",
+        role: role,
+      };
+
+      await setDoc(userDocRef, newUserProfile);
+      return newUserProfile;
+    }
+  } catch (error) {
+      console.error("Error ensuring user profile exists:", error);
+      // If we fail here, we can't proceed with a profile.
+      throw new Error("Could not create or retrieve user profile.");
   }
 }
 
@@ -79,20 +88,23 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        try {
+      try {
+        if (firebaseUser) {
+          setUser(firebaseUser);
           const profile = await ensureUserProfile(firestore, firebaseUser);
           setUserProfile(profile);
-        } catch (e) {
-          console.error("FirebaseProvider: Error ensuring user profile", e);
-          setError(e as Error);
+        } else {
+          setUser(null);
           setUserProfile(null);
         }
-      } else {
-        setUserProfile(null);
+      } catch (e) {
+          console.error("FirebaseProvider: Error during auth state change", e);
+          setError(e as Error);
+          setUser(null);
+          setUserProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }, (authError) => {
         console.error("FirebaseProvider: onAuthStateChanged error:", authError);
         setError(authError);
