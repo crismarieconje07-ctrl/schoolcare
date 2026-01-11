@@ -40,9 +40,9 @@ export async function submitReport(
   firebase: FirebaseContextState,
   values: ReportData
 ) {
-  const { firestore, storage, user } = firebase;
+  const { firestore, storage, user, userProfile } = firebase;
 
-  if (!firestore || !storage || !user) {
+  if (!firestore || !storage || !user || !userProfile) {
     throw new Error("Authentication not ready. Please wait and try again.");
   }
 
@@ -59,7 +59,7 @@ export async function submitReport(
     await setDoc(newReportRef, {
       id: newReportRef.id,
       userId: user.uid,
-      userDisplayName: user.displayName || "Anonymous",
+      userDisplayName: userProfile.displayName || user.email || "Anonymous",
       category: values.category,
       roomNumber: values.roomNumber,
       description: values.description,

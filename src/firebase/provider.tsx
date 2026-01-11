@@ -3,11 +3,11 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, UserRole } from '@/lib/types';
 
 
 // Combined state for the Firebase context
@@ -32,6 +32,30 @@ interface FirebaseProviderProps {
     firestore: Firestore;
     storage: FirebaseStorage;
   }
+
+/**
+ * Ensures a user profile exists in Firestore. If not, it creates one.
+ * This function is crucial for fixing accounts that were partially created.
+ */
+async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile> {
+  const userDocRef = doc(firestore, "users", user.uid);
+  const userDoc = await getDoc(userDocRef);
+
+  if (userDoc.exists()) {
+    return userDoc.data() as UserProfile;
+  } else {
+    // Profile doesn't exist, so create it.
+    const role: UserRole = user.email === "admin@schoolcare.com" ? "admin" : "student";
+    const newUserProfile: UserProfile = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email?.split('@')[0] || "Anonymous User",
+      role: role,
+    };
+    await setDoc(userDocRef, newUserProfile);
+    return newUserProfile;
+  }
+}
 
 /**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
@@ -60,17 +84,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const userDocRef = doc(firestore, "users", firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
-          } else {
-            // If user exists in Auth but not Firestore, maybe they are new
-            // Or there was an error during profile creation.
-            setUserProfile(null);
-          }
+          // Ensure profile exists and get it, fixing broken sign-ups.
+          const profile = await ensureUserProfile(firestore, firebaseUser);
+          setUserProfile(profile);
         } catch (e) {
-          console.error("FirebaseProvider: Error fetching user profile", e);
+          console.error("FirebaseProvider: Error ensuring user profile", e);
           setError(e as Error);
           setUserProfile(null);
         }
@@ -91,7 +109,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe(); // Cleanup subscription on unmount
   }, [auth, firestore]); 
 
-  // Memoize the context value
+  // Memoize the context value to prevent unnecessary re-renders.
   const contextValue = useMemo((): FirebaseContextState => ({
       firebaseApp,
       firestore,
