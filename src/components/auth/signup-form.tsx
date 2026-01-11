@@ -18,9 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { signUp, createUserProfile } from "@/lib/actions";
-import { useFirebase } from "@/firebase";
-
+import { signUp } from "@/lib/actions";
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -32,7 +30,6 @@ export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const { auth } = useFirebase();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,26 +44,17 @@ export function SignUpForm() {
     setIsLoading(true);
     const result = await signUp(values);
     
-    if (result.success && result.user) {
-      const profileResult = await createUserProfile(result.user.uid, {
-        email: values.email,
-        displayName: values.displayName,
-      });
-
-      if (profileResult.success) {
-        router.push("/dashboard");
-      } else {
-        toast({
-            variant: "destructive",
-            title: "Sign Up Failed",
-            description: profileResult.error || "Could not create user profile.",
-        });
-      }
+    if (result.success) {
+      router.push("/dashboard");
     } else {
+      let errorMessage = result.error || "An unknown error occurred.";
+      if (errorMessage.includes('auth/email-already-in-use')) {
+        errorMessage = "This email address is already in use. Please try logging in.";
+      }
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
-        description: result.error,
+        description: errorMessage,
       });
     }
     setIsLoading(false);

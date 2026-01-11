@@ -30,20 +30,36 @@ const signUpSchema = z.object({
 });
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
+  const { auth, firestore } = initializeFirebase();
   try {
-    const { auth } = initializeFirebase();
+    // 1. Create the user in Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       values.email,
       values.password
     );
-    
-    // We only update the auth user's display name. Profile doc is separate.
-    await updateProfile(userCredential.user, { displayName: values.displayName });
+    const user = userCredential.user;
 
-    // Return the full user object on success
-    return { success: true, user: userCredential.user };
+    // 2. Update the auth profile's display name
+    await updateProfile(user, { displayName: values.displayName });
+
+    // 3. Create the user profile document in Firestore
+    const role = values.email === "admin@schoolcare.com" ? "admin" : "student";
+    const userProfile: UserProfile = {
+      uid: user.uid,
+      email: values.email,
+      displayName: values.displayName,
+      role: role,
+    };
+    await setDoc(doc(firestore, "users", user.uid), userProfile);
+    
+    // Revalidate the root to ensure layouts using this data are updated.
+    revalidatePath("/", "layout");
+    
+    // Return the full user object on complete success
+    return { success: true, user: user };
   } catch (error: any) {
+    // This will catch failures from any of the steps above
     return { success: false, error: error.message };
   }
 }
@@ -84,35 +100,6 @@ export async function logOut() {
     return { success: false, error: error.message };
   }
 }
-
-const userProfileSchema = z.object({
-  email: z.string().email(),
-  displayName: z.string(),
-});
-
-export async function createUserProfile(userId: string, values: z.infer<typeof userProfileSchema>) {
-    const { firestore } = initializeFirebase();
-  
-    // Determine role based on email, for example
-    const role = values.email === "admin@schoolcare.com" ? "admin" : "student";
-  
-    const userProfile: UserProfile = {
-      uid: userId,
-      email: values.email,
-      displayName: values.displayName,
-      role: role,
-    };
-  
-    try {
-      await setDoc(doc(firestore, "users", userId), userProfile);
-      // Revalidate the root to ensure layouts using this data are updated.
-      revalidatePath("/", "layout");
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-}
-
 
 // --- AI Action ---
 
