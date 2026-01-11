@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "@/components/layout/auth-provider";
+import { FirebaseClientProvider } from "@/firebase";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -25,10 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased")}>
-        <AuthProvider>
+        <FirebaseClientProvider>
           {children}
           <Toaster />
-        </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

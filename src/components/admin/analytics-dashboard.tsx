@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useMemo } from "react";
+import { collectionGroup, query } from "firebase/firestore";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Report, Category, Status } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,27 +20,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CATEGORIES } from "@/lib/constants";
 
 const AnalyticsDashboard = () => {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const firestore = useFirestore();
+  
+  const reportsQuery = useMemoFirebase(() => {
+    return query(collectionGroup(firestore, "reports"));
+  }, [firestore]);
 
-  useEffect(() => {
-    setLoading(true);
-    const reportsRef = collection(db, "reports");
-    const q = query(reportsRef);
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const reportsData: Report[] = [];
-      querySnapshot.forEach((doc) => {
-        reportsData.push({ id: doc.id, ...doc.data() } as Report);
-      });
-      setReports(reportsData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { data: reports, isLoading } = useCollection<Report>(reportsQuery);
 
   const categoryData = useMemo(() => {
+    if (!reports) return [];
     const counts: { [key in Category]?: number } = {};
     for (const report of reports) {
       counts[report.category] = (counts[report.category] || 0) + 1;
@@ -49,6 +38,7 @@ const AnalyticsDashboard = () => {
   }, [reports]);
 
   const roomData = useMemo(() => {
+    if (!reports) return [];
     const counts: { [key: string]: number } = {};
     for (const report of reports) {
       counts[report.roomNumber] = (counts[report.roomNumber] || 0) + 1;
@@ -60,6 +50,7 @@ const AnalyticsDashboard = () => {
   }, [reports]);
 
   const statusData = useMemo(() => {
+    if (!reports) return [];
     const counts: { [key in Status]?: number } = {};
     for (const report of reports) {
       counts[report.status] = (counts[report.status] || 0) + 1;
@@ -76,7 +67,7 @@ const AnalyticsDashboard = () => {
     other: "hsl(var(--category-others))",
   };
   
-  if (loading) {
+  if (isLoading) {
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Skeleton className="h-80" />

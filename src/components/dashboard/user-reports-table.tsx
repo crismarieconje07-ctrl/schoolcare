@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/lib/hooks";
+import { useMemo } from "react";
+import { collection, query, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import type { Report } from "@/lib/types";
 import {
   Table,
@@ -21,39 +20,21 @@ import { format } from "date-fns";
 import { CATEGORIES } from "@/lib/constants";
 
 export default function UserReportsTable() {
-  const { user } = useAuth();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    const reportsRef = collection(db, "reports");
-    const q = query(reportsRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const reportsData: Report[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        reportsData.push({ 
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-        } as Report);
-      });
-      setReports(reportsData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+  const reportsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, "users", user.uid, "reports"), orderBy("createdAt", "desc"));
+  }, [firestore, user]);
   
+  const { data: reports, isLoading } = useCollection<Report>(reportsQuery);
+
   const getCategoryLabel = (value: string) => {
     return CATEGORIES.find(c => c.value === value)?.label || value;
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-2">
         {[...Array(3)].map((_, i) => (
@@ -63,8 +44,8 @@ export default function UserReportsTable() {
     );
   }
 
-  if (reports.length === 0) {
-    return <p className="text-center text-muted-foreground">You haven&apos;t submitted any reports yet.</p>
+  if (!reports || reports.length === 0) {
+    return <p className="text-center text-muted-foreground">You haven't submitted any reports yet.</p>
   }
 
   return (
@@ -96,7 +77,7 @@ export default function UserReportsTable() {
               <PriorityBadge priority={report.priority} />
             </TableCell>
             <TableCell className="text-right">
-              {report.createdAt ? format(report.createdAt, "MMM d, yyyy") : 'N/A'}
+              {report.createdAt ? format(report.createdAt.toDate(), "MMM d, yyyy") : 'N/A'}
             </TableCell>
           </TableRow>
         ))}

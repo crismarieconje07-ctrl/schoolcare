@@ -3,6 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
@@ -19,7 +20,7 @@ import {
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
-import { auth, db, storage } from "@/lib/firebase";
+import { initializeFirebase } from "@/firebase";
 import type { UserProfile } from "@/lib/types";
 
 // --- Authentication Actions ---
@@ -32,6 +33,7 @@ const signUpSchema = z.object({
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
   try {
+    const { auth, firestore } = initializeFirebase();
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       values.email,
@@ -51,7 +53,7 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       role: role,
     };
 
-    await setDoc(doc(db, "users", user.uid), userProfile);
+    await setDoc(doc(firestore, "users", user.uid), userProfile);
 
     return { success: true };
   } catch (error: any) {
@@ -66,6 +68,7 @@ const logInSchema = z.object({
 
 export async function logIn(values: z.infer<typeof logInSchema>) {
   try {
+    const { auth } = initializeFirebase();
     await signInWithEmailAndPassword(auth, values.email, values.password);
     return { success: true };
   } catch (error: any) {
@@ -88,6 +91,7 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
 
 export async function logOut() {
   try {
+    const { auth } = initializeFirebase();
     await signOut(auth);
     return { success: true };
   } catch (error: any) {
@@ -123,6 +127,7 @@ const reportSchema = z.object({
 
 
 export async function submitReport(values: z.infer<typeof reportSchema>) {
+  const { auth, firestore, getSdks } = initializeFirebase();
   const user = auth.currentUser;
   if (!user) {
     return { success: false, error: "You must be logged in to submit a report." };
@@ -131,12 +136,15 @@ export async function submitReport(values: z.infer<typeof reportSchema>) {
   try {
     let imageUrl: string | undefined = undefined;
     if (values.photoDataUri) {
+      const { storage } = getSdks(auth.app); // Assuming storage is needed
       const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}`);
       const uploadResult = await uploadString(storageRef, values.photoDataUri, 'data_url');
       imageUrl = await getDownloadURL(uploadResult.ref);
     }
 
-    await addDoc(collection(db, "reports"), {
+    const reportsCollection = collection(firestore, 'users', user.uid, 'reports');
+
+    await addDoc(reportsCollection, {
       userId: user.uid,
       userDisplayName: user.displayName || "Anonymous",
       category: values.category,
@@ -152,6 +160,7 @@ export async function submitReport(values: z.infer<typeof reportSchema>) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
+    console.error("submitReport error: ", error);
     return { success: false, error: "Failed to submit report. " + error.message };
   }
 }
@@ -159,6 +168,7 @@ export async function submitReport(values: z.infer<typeof reportSchema>) {
 
 const updateReportSchema = z.object({
   reportId: z.string(),
+  userId: z.string(),
   status: z.enum(['Pending', 'In Progress', 'Completed']).optional(),
   priority: z.enum(['Low', 'Moderate', 'Urgent']).optional(),
   internalNotes: z.string().optional(),
@@ -166,6 +176,7 @@ const updateReportSchema = z.object({
 
 
 export async function updateReport(values: z.infer<typeof updateReportSchema>) {
+    const { auth, firestore } = initializeFirebase();
    const user = auth.currentUser;
    if (!user) {
     return { success: false, error: "Authentication required." };
@@ -173,7 +184,7 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
   // In a real app, we'd check for admin role here from a trusted source
   
   try {
-    const reportRef = doc(db, "reports", values.reportId);
+    const reportRef = doc(firestore, "users", values.userId, "reports", values.reportId);
     
     const updateData: any = {
       updatedAt: serverTimestamp(),

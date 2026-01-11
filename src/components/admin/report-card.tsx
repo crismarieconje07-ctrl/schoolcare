@@ -37,7 +37,7 @@ const ReportCard = ({ report }: ReportCardProps) => {
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span>{formatDistanceToNow(report.createdAt, { addSuffix: true })}</span>
+              <span>{report.createdAt ? formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true }) : ''}</span>
             </div>
             {report.imageUrl && (
               <div className="flex items-center gap-2 text-blue-500">

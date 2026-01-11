@@ -45,6 +45,7 @@ const EditReportDialog = ({ report, isOpen, setIsOpen }: EditReportDialogProps) 
     setIsSubmitting(true);
     const result = await updateReport({
         reportId: report.id,
+        userId: report.userId,
         ...values,
     });
     setIsSubmitting(false);
@@ -69,7 +70,7 @@ const EditReportDialog = ({ report, isOpen, setIsOpen }: EditReportDialogProps) 
             <p><strong>Description:</strong> {report.description}</p>
             {report.imageUrl && (
               <div className="mt-2 relative w-full aspect-video rounded-md overflow-hidden">
-                <Image src={report.imageUrl} alt="Report image" layout="fill" objectFit="cover" />
+                <Image src={report.imageUrl} alt="Report image" fill objectFit="cover" />
               </div>
             )}
         </div>
