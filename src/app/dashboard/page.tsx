@@ -6,10 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks';
-import { CATEGORIES, getCategoryColor } from '@/lib/constants';
+import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/components/shared/category-icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import type { Category } from '@/lib/types';
+
+const categoryColors: Record<Category, string> = {
+    chair: 'hsl(215 19% 47%)',
+    fan: 'hsl(198 93% 62%)',
+    window: 'hsl(200 89% 48%)',
+    light: 'hsl(45 95% 55%)',
+    sanitation: 'hsl(139 63% 47%)',
+    other: 'hsl(215 14% 65%)',
+};
 
 export default function DashboardPage() {
   const { userProfile, loading } = useAuth();
@@ -31,10 +41,8 @@ export default function DashboardPage() {
         {CATEGORIES.map((category) => (
           <Button
             key={category.value}
-            className={cn(
-              "h-24 flex-col gap-2 justify-center text-primary-foreground hover:text-primary-foreground/90 transition-all hover:opacity-90",
-              getCategoryColor(category)
-            )}
+            className="h-24 flex-col gap-2 justify-center text-primary-foreground hover:text-primary-foreground/90 transition-all hover:opacity-90"
+            style={{ backgroundColor: categoryColors[category.value] }}
             asChild
           >
             <Link href={`/dashboard/submit-report?category=${category.value}`}>
