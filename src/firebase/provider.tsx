@@ -51,16 +51,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth || !firestore) { 
-      setLoading(false);
+    // Services are not yet available, keep loading and set error if they don't appear.
+    if (!auth || !firestore) {
+      setLoading(true);
       setError(new Error("Auth or Firestore service not provided."));
       return;
     }
 
+    // Start with a loading state until the first auth check completes.
+    setLoading(true);
+
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => { 
-        setLoading(true); // Set loading to true at the start of auth change
         setUser(firebaseUser);
         if (firebaseUser) {
           try {
@@ -69,7 +72,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             if (userDoc.exists()) {
               setUserProfile(userDoc.data() as UserProfile);
             } else {
-              // This case might happen if the user exists in Auth but not Firestore.
               setUserProfile(null); 
             }
           } catch(e) {
@@ -80,7 +82,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         } else {
           setUserProfile(null);
         }
-        setLoading(false); // Set loading to false only after all async work is done
+        // Only set loading to false after the initial auth state has been determined.
+        setLoading(false);
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
