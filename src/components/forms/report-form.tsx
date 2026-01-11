@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,23 +63,12 @@ export function ReportForm() {
     },
   });
 
-  useEffect(() => {
+  useState(() => {
     if (defaultCategory) {
       form.setValue('category', defaultCategory);
     }
-  }, [defaultCategory, form]);
+  });
 
-  useEffect(() => {
-    if (!authLoading && user) {
-        user.getIdToken(true).then(token => {
-            document.cookie = `session=${token}; path=/; max-age=3600`;
-        }).catch(err => {
-            console.error("Error setting session cookie:", err);
-        });
-    } else if (!authLoading && !user) {
-        document.cookie = 'session=; path=/; max-age=-1';
-    }
-  }, [user, authLoading]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -128,16 +117,6 @@ export function ReportForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-
-    if (authLoading) {
-        toast({
-            variant: "destructive",
-            title: "Submission Failed",
-            description: "Authentication is still initializing. Please wait a moment.",
-        });
-        setIsSubmitting(false);
-        return;
-    }
 
     if (!user) {
         toast({

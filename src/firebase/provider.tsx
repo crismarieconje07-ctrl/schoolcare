@@ -80,7 +80,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Effect to subscribe to Firebase auth state changes
+  // Effect to subscribe to Firebase auth state changes and manage session cookie
   useEffect(() => {
     if (!auth || !firestore) {
       setLoading(true);
@@ -90,12 +90,25 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
+          // User is logged in
           setUser(firebaseUser);
           const profile = await ensureUserProfile(firestore, firebaseUser);
           setUserProfile(profile);
+
+          // Set session cookie
+          const idToken = await firebaseUser.getIdToken(true);
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+
         } else {
+          // User is logged out
           setUser(null);
           setUserProfile(null);
+          // Clear session cookie
+           await fetch('/api/auth/session', { method: 'DELETE' });
         }
       } catch (e) {
           console.error("FirebaseProvider: Error during auth state change", e);
