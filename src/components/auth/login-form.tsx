@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +29,7 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const id = useId();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -61,7 +62,7 @@ export function LoginForm() {
           control={form.control}
           name="email"
           render={({ field }) => (
-            <FormItem>
+            <FormItem id={id}>
               <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input placeholder="m@example.com" {...field} />

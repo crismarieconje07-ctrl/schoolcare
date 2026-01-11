@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { signUp } from "@/lib/actions";
+import { signUp, createUserProfile } from "@/lib/actions";
+import { useAuth } from "@/firebase";
 
 
 const formSchema = z.object({
@@ -31,6 +32,8 @@ export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { auth } = useAuth();
+  const id = useId();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,7 +48,8 @@ export function SignUpForm() {
     setIsLoading(true);
     const result = await signUp(values);
     
-    if (result.success) {
+    if (result.success && auth.currentUser) {
+      await createUserProfile(auth.currentUser, values.displayName);
       // After successful sign-up, log the user in to get an authenticated session
       router.push("/dashboard");
     } else {
@@ -65,7 +69,7 @@ export function SignUpForm() {
           control={form.control}
           name="displayName"
           render={({ field }) => (
-            <FormItem>
+            <FormItem id={id}>
               <FormLabel>Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
