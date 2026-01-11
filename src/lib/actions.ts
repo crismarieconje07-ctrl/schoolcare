@@ -24,6 +24,7 @@ import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile, Category } from "@/lib/types";
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from "./firebase-admin";
+import { cookies } from "next/headers";
 
 // --- Authentication Actions ---
 
@@ -132,16 +133,17 @@ const reportSchema = z.object({
 });
 
 
-export async function createReport(idToken: string, formData: FormData) {
+export async function createReport(formData: FormData) {
   try {
     const { firestore, storage } = initializeFirebase();
     await initializeAdminApp();
     
-    if (!idToken) {
+    const sessionCookie = cookies().get("session")?.value;
+    if (!sessionCookie) {
       return { success: false, error: "Authentication token is missing. Please log in." };
     }
 
-    const decodedToken = await getAdminAuth().verifyIdToken(idToken, true);
+    const decodedToken = await getAdminAuth().verifySessionCookie(sessionCookie, true);
     const userId = decodedToken.uid;
 
     const values = reportSchema.safeParse({
@@ -195,6 +197,9 @@ export async function createReport(idToken: string, formData: FormData) {
 
   } catch (error: any) {
     console.error("createReport error:", error);
+    if (error.code === 'auth/session-cookie-expired' || error.code === 'auth/session-cookie-revoked') {
+      return { success: false, error: "Your session has expired. Please log in again." };
+    }
     return { success: false, error: error.message || "Failed to create report." };
   }
 }

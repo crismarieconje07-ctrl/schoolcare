@@ -69,6 +69,18 @@ export function ReportForm() {
     }
   }, [defaultCategory, form]);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+        user.getIdToken(true).then(token => {
+            document.cookie = `session=${token}; path=/; max-age=3600`;
+        }).catch(err => {
+            console.error("Error setting session cookie:", err);
+        });
+    } else if (!authLoading && !user) {
+        document.cookie = 'session=; path=/; max-age=-1';
+    }
+  }, [user, authLoading]);
+
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -117,6 +129,16 @@ export function ReportForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
 
+    if (authLoading) {
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "Authentication is still initializing. Please wait a moment.",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+
     if (!user) {
         toast({
             variant: "destructive",
@@ -127,8 +149,6 @@ export function ReportForm() {
         return;
     }
     
-    const idToken = await user.getIdToken();
-
     const formData = new FormData();
     formData.append('category', values.category);
     formData.append('roomNumber', values.roomNumber);
@@ -138,7 +158,7 @@ export function ReportForm() {
     }
 
     try {
-        const result = await createReport(idToken, formData);
+        const result = await createReport(formData);
 
         if (result.success) {
             router.push("/dashboard/submit-report/success");

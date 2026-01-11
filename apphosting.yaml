@@ -5,3 +5,14 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+# Pass secrets from Cloud Secret Manager to the App Hosting backend as environment variables.
+# You can create the secrets using the command:
+# `gcloud secrets versions add --data-file <file-path> <secret-name>`
+# For example, to create a secret for a service account key, you can run the command:
+# `gcloud secrets versions add --data-file service-account.json FIREBASE_SERVICE_ACCOUNT`
+# Secrets are only available to the server and not to the client.
+# You can find more information about secrets here:
+# https://firebase.google.com/docs/app-hosting/configure#manage-secrets
+secretEnv:
+- key: FIREBASE_SERVICE_ACCOUNT
+  secret: FIREBASE_SERVICE_ACCOUNT

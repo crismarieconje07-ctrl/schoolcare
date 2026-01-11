@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, type ServiceAccount } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
 let app: App;
@@ -10,8 +10,10 @@ export async function initializeAdminApp() {
     return app;
   }
   
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) : null;
+
   app = initializeApp({
-    credential: credential.applicationDefault(),
+    credential: serviceAccount ? credential.cert(serviceAccount) : credential.applicationDefault(),
   });
 
   return app;
