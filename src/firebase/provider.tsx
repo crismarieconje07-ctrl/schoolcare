@@ -60,6 +60,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => { 
+        setLoading(true); // Set loading to true at the start of auth change
         setUser(firebaseUser);
         if (firebaseUser) {
           try {
@@ -68,7 +69,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             if (userDoc.exists()) {
               setUserProfile(userDoc.data() as UserProfile);
             } else {
-              setUserProfile(null);
+              // This case might happen if the user exists in Auth but not Firestore.
+              setUserProfile(null); 
             }
           } catch(e) {
             console.error("FirebaseProvider: Error fetching user profile", e);
@@ -78,11 +80,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         } else {
           setUserProfile(null);
         }
-        setLoading(false);
+        setLoading(false); // Set loading to false only after all async work is done
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setError(error);
+        setUser(null);
+        setUserProfile(null);
         setLoading(false);
       }
     );
