@@ -32,13 +32,13 @@ export default function DashboardPage() {
           <Button
             key={category.value}
             className={cn(
-              "h-24 flex-col gap-2 justify-center text-white hover:text-white transition-all hover:opacity-90",
+              "h-24 flex-col gap-2 justify-center text-primary-foreground hover:text-primary-foreground/90 transition-all hover:opacity-90",
               getCategoryColor(category)
             )}
             asChild
           >
             <Link href={`/dashboard/submit-report?category=${category.value}`}>
-              <CategoryIcon category={category.value} className="h-10 w-10 bg-transparent" />
+              <CategoryIcon category={category.value} className="h-10 w-10 bg-transparent text-primary-foreground" />
               <span className="text-sm font-medium">{category.label}</span>
             </Link>
           </Button>

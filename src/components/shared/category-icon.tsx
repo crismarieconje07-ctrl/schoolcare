@@ -7,10 +7,9 @@ export function CategoryIcon({ category, className }: { category: Category, clas
   if (!categoryInfo) return null;
 
   const Icon = categoryInfo.icon;
-  const colorClass = getCategoryColor(category);
 
   return (
-    <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", colorClass, className)}>
+    <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", className)}>
       <Icon className="h-5 w-5 text-current" />
     </div>
   );

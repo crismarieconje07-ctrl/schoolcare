@@ -45,7 +45,7 @@ const AdminDashboard = () => {
                     <ScrollArea className="flex-1 p-4">
                         <div className="space-y-4">
                             {reportsByStatus(statusInfo.value).length > 0 ? (
-                                reportsByStatu_s(statusInfo.value).map((report) => (
+                                reportsByStatus(statusInfo.value).map((report) => (
                                     <ReportCard key={report.id} report={report} />
                                 ))
                             ) : (
