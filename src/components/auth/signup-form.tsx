@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -17,8 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { signUp, logIn, createUserProfile } from "@/lib/actions";
-import { useAuth as useFirebaseAuth } from "@/firebase";
+import { signUp } from "@/lib/actions";
 
 
 const formSchema = z.object({
@@ -31,7 +31,6 @@ export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const auth = useFirebaseAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,32 +47,7 @@ export function SignUpForm() {
     
     if (result.success) {
       // After successful sign-up, log the user in to get an authenticated session
-      const loginResult = await logIn({ email: values.email, password: values.password });
-
-      if (loginResult.success && auth.currentUser) {
-        // Now that the user is logged in on the client, create their profile
-        const profileResult = await createUserProfile(auth.currentUser, values.displayName);
-        
-        if (profileResult.success) {
-           toast({
-            title: "Account Created",
-            description: "Welcome to SchoolCare! You can now log in.",
-          });
-          router.push("/dashboard");
-        } else {
-           toast({
-            variant: "destructive",
-            title: "Sign Up Failed",
-            description: "Could not create user profile. " + profileResult.error,
-          });
-        }
-      } else {
-         toast({
-          variant: "destructive",
-          title: "Sign Up Failed",
-          description: "Could not log in after sign up. " + loginResult.error,
-        });
-      }
+      router.push("/dashboard");
     } else {
       toast({
         variant: "destructive",

@@ -33,7 +33,7 @@ const signUpSchema = z.object({
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
   try {
-    const { auth } = initializeFirebase();
+    const { auth, firestore } = initializeFirebase();
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       values.email,
@@ -42,6 +42,17 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     
     // Update display name in Firebase Auth
     await updateProfile(userCredential.user, { displayName: values.displayName });
+
+    const role = values.email === "admin@schoolcare.com" ? "admin" : "student";
+  
+    const userProfile: UserProfile = {
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      displayName: values.displayName,
+      role: role,
+    };
+  
+    await setDoc(doc(firestore, "users", userCredential.user.uid), userProfile);
 
     // The user profile document will be created on the client side now
     return { success: true };

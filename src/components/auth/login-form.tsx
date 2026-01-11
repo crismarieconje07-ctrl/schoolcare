@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -43,10 +44,6 @@ export function LoginForm() {
     setIsLoading(false);
 
     if (result.success) {
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
       router.push("/dashboard");
     } else {
       toast({
