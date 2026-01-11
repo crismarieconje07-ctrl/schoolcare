@@ -3,7 +3,6 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
@@ -22,6 +21,7 @@ import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile } from "@/lib/types";
+import type { User } from "firebase/auth";
 
 // --- Authentication Actions ---
 
@@ -33,28 +33,17 @@ const signUpSchema = z.object({
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
   try {
-    const { auth, firestore } = initializeFirebase();
+    const { auth } = initializeFirebase();
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       values.email,
       values.password
     );
-    const user = userCredential.user;
+    
+    // Update display name in Firebase Auth
+    await updateProfile(userCredential.user, { displayName: values.displayName });
 
-    await updateProfile(user, { displayName: values.displayName });
-
-    const role =
-      values.email === "admin@schoolcare.com" ? "admin" : "student";
-
-    const userProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email,
-      displayName: values.displayName,
-      role: role,
-    };
-
-    await setDoc(doc(firestore, "users", user.uid), userProfile);
-
+    // The user profile document will be created on the client side now
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -76,9 +65,8 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
     if (error.code) {
       switch (error.code) {
         case 'auth/user-not-found':
-          return { success: false, error: 'No user found with this email.' };
         case 'auth/wrong-password':
-          return { success: false, error: 'Incorrect password. Please try again.' };
+          return { success: false, error: 'Invalid credentials. Please try again.' };
         case 'auth/invalid-email':
           return { success: false, error: 'The email address is not valid.' };
         default:
@@ -99,6 +87,29 @@ export async function logOut() {
     return { success: false, error: error.message };
   }
 }
+
+
+export async function createUserProfile(user: User, displayName: string) {
+    "use server";
+    const { firestore } = initializeFirebase();
+  
+    const role = user.email === "admin@schoolcare.com" ? "admin" : "student";
+  
+    const userProfile: UserProfile = {
+      uid: user.uid,
+      email: user.email,
+      displayName: displayName,
+      role: role,
+    };
+  
+    try {
+      await setDoc(doc(firestore, "users", user.uid), userProfile);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+}
+
 
 // --- AI Action ---
 
