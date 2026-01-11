@@ -11,7 +11,7 @@ export function CategoryIcon({ category, className }: { category: Category, clas
 
   return (
     <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", colorClass, className)}>
-      <Icon className="h-5 w-5 text-white" />
+      <Icon className="h-5 w-5 text-current" />
     </div>
   );
 }

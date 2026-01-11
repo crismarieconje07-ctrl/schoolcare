@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, getCategoryColor } from '@/lib/constants';
 import { CategoryIcon } from '@/components/shared/category-icon';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { userProfile, loading } = useAuth();
@@ -31,11 +32,14 @@ export default function DashboardPage() {
           <Button
             key={category.value}
             variant="outline"
-            className="h-24 flex-col gap-2 justify-center"
+            className={cn(
+              "h-24 flex-col gap-2 justify-center text-white hover:text-white transition-all hover:opacity-90",
+              getCategoryColor(category)
+            )}
             asChild
           >
             <Link href={`/dashboard/submit-report?category=${category.value}`}>
-              <CategoryIcon category={category.value} className="h-10 w-10" />
+              <CategoryIcon category={category.value} className="h-10 w-10 bg-transparent" />
               <span className="text-sm font-medium">{category.label}</span>
             </Link>
           </Button>
