@@ -1,3 +1,4 @@
+
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -68,7 +69,20 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
     await signInWithEmailAndPassword(auth, values.email, values.password);
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: "Invalid email or password." };
+    // Provide more specific error messages from Firebase
+    if (error.code) {
+      switch (error.code) {
+        case 'auth/user-not-found':
+          return { success: false, error: 'No user found with this email.' };
+        case 'auth/wrong-password':
+          return { success: false, error: 'Incorrect password. Please try again.' };
+        case 'auth/invalid-email':
+          return { success: false, error: 'The email address is not valid.' };
+        default:
+          return { success: false, error: 'Login failed. Please try again.' };
+      }
+    }
+    return { success: false, error: "An unknown error occurred." };
   }
 }
 
