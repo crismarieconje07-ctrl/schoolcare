@@ -118,7 +118,7 @@ export function ReportForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     // Final gatekeeper check at the moment of submission
-    if (!firebaseState.user || !firebaseState.firestore || !firebaseState.storage) {
+    if (!firebaseState.user || !firebaseState.firestore || !firebaseState.storage || !firebaseState.userProfile) {
       toast({
         variant: 'destructive',
         title: 'Authentication not ready',
