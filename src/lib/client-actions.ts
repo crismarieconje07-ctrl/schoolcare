@@ -2,7 +2,6 @@
 "use client";
 
 import {
-  addDoc,
   collection,
   doc,
   serverTimestamp,
@@ -13,8 +12,9 @@ import {
   ref,
   uploadBytes,
 } from "firebase/storage";
-import type { Category } from "./types";
-import type { FirebaseContextState } from "@/firebase";
+import type { Category, UserProfile } from "./types";
+import { initializeFirebase } from "@/firebase";
+import { getDoc } from "firebase/firestore";
 
 interface ReportData {
     category: Category;
@@ -24,7 +24,7 @@ interface ReportData {
 }
 
 async function uploadPhoto(
-    storage: FirebaseContextState['storage'],
+    storage: ReturnType<typeof initializeFirebase>['storage'],
     userId: string,
     file: File
   ): Promise<string> {
@@ -35,16 +35,28 @@ async function uploadPhoto(
 }
 
 export async function submitReport(
-  firebase: FirebaseContextState,
   values: ReportData
 ) {
-  const { firestore, storage, user, userProfile } = firebase;
+  // Initialize services directly inside the action to guarantee they are ready.
+  const { auth, firestore, storage } = initializeFirebase();
 
-  if (!firestore || !storage || !user || !userProfile) {
-    throw new Error("Authentication not ready. Please wait and try again.");
+  const user = auth.currentUser;
+
+  if (!firestore || !storage || !user) {
+    // This is the definitive gatekeeper.
+    throw new Error("Authentication not ready. Please log out and log back in.");
   }
 
   try {
+    // Fetch the user profile to get the correct display name
+    const userDocRef = doc(firestore, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      throw new Error("User profile not found. Please sign out and sign in again.");
+    }
+    const userProfile = userDoc.data() as UserProfile;
+
     let imageUrl: string | undefined = undefined;
     if (values.photoFile) {
       imageUrl = await uploadPhoto(storage, user.uid, values.photoFile);
@@ -57,7 +69,7 @@ export async function submitReport(
     await setDoc(newReportRef, {
       id: newReportRef.id,
       userId: user.uid,
-      userDisplayName: userProfile.displayName || userProfile.email || "Anonymous",
+      userDisplayName: userProfile.displayName || userProfile.email || "User",
       category: values.category,
       roomNumber: values.roomNumber,
       description: values.description,
