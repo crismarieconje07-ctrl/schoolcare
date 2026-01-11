@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['"PT Sans"', 'sans-serif'],
+        headline: ['"PT Sans"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -65,6 +65,24 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        status: {
+          pending: 'hsl(var(--status-pending))',
+          'in-progress': 'hsl(var(--status-in-progress))',
+          completed: 'hsl(var(--status-completed))',
+        },
+        priority: {
+          low: 'hsl(var(--priority-low))',
+          moderate: 'hsl(var(--priority-moderate))',
+          urgent: 'hsl(var(--priority-urgent))',
+        },
+        category: {
+          chairs: 'hsl(var(--category-chairs))',
+          fans: 'hsl(var(--category-fans))',
+          windows: 'hsl(var(--category-windows))',
+          lights: 'hsl(var(--category-lights))',
+          sanitation: 'hsl(var(--category-sanitation))',
+          others: 'hsl(var(--category-others))',
+        }
       },
       borderRadius: {
         lg: 'var(--radius)',
