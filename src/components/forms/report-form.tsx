@@ -46,7 +46,7 @@ export function ReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { loading: authLoading } = useFirebase();
+  const { user, loading: authLoading } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -117,7 +117,20 @@ export function ReportForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
 
+    if (!user) {
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "You must be logged in to submit a report.",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+    
+    const idToken = await user.getIdToken();
+
     const formData = new FormData();
+    formData.append('idToken', idToken);
     formData.append('category', values.category);
     formData.append('roomNumber', values.roomNumber);
     formData.append('description', values.description);

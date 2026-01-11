@@ -22,7 +22,6 @@ import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile, Category } from "@/lib/types";
-import { headers } from 'next/headers';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from "./firebase-admin";
 
@@ -138,8 +137,7 @@ export async function createReport(formData: FormData) {
     const { firestore, storage } = initializeFirebase();
     await initializeAdminApp();
     
-    const headersList = headers();
-    const idToken = headersList.get('X-Firebase-AppCheck');
+    const idToken = formData.get('idToken') as string;
 
     if (!idToken) {
       return { success: false, error: "Authentication token is missing. Please log in." };
