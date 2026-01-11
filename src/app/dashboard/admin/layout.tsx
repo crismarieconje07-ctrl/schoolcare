@@ -2,11 +2,11 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/hooks';
+import { useFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { userProfile, loading } = useAuth();
+  const { userProfile, loading } = useFirebase();
   const router = useRouter();
 
   useEffect(() => {

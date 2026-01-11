@@ -5,7 +5,7 @@ import UserReportsTable from '@/components/dashboard/user-reports-table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/components/shared/category-icon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +21,7 @@ const categoryColors: Record<Category, string> = {
 };
 
 export default function DashboardPage() {
-  const { userProfile, loading } = useAuth();
+  const { userProfile, loading } = useFirebase();
 
   return (
     <div className="space-y-8">

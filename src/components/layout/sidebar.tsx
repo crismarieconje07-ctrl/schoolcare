@@ -21,7 +21,7 @@ import {
   LayoutDashboard,
   LogOut,
 } from "lucide-react";
-import { useAuth } from "@/lib/hooks";
+import { useFirebase } from "@/firebase";
 import { logOut } from "@/lib/actions";
 import { Logo } from "@/components/shared/logo";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +30,7 @@ const AppSidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { userProfile } = useAuth();
+  const { userProfile } = useFirebase();
   const isAdmin = userProfile?.role === "admin";
 
   const handleLogout = async () => {

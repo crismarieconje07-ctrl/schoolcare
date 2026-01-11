@@ -11,14 +11,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useAuth } from "@/lib/hooks";
+import { useFirebase } from "@/firebase";
 import { logOut } from "@/lib/actions";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 const AppHeader = () => {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
 

@@ -32,7 +32,7 @@ import { suggestCategory } from "@/lib/actions";
 import { submitReport } from "@/lib/client-actions";
 import { CATEGORIES } from "@/lib/constants";
 import Image from "next/image";
-import { useAuth } from "@/firebase";
+import { useFirebase } from "@/firebase";
 import type { Category } from "@/lib/types";
 
 const formSchema = z.object({
@@ -47,7 +47,7 @@ export function ReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, firestore, storage, loading: authLoading } = useAuth();
+  const { user, firestore, storage, loading: authLoading } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);

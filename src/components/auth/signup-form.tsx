@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { signUp, createUserProfile } from "@/lib/actions";
-import { useAuth } from "@/lib/hooks";
+import { useFirebase } from "@/firebase";
 
 
 const formSchema = z.object({
@@ -32,7 +32,7 @@ export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const { auth } = useAuth();
+  const { auth } = useFirebase();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

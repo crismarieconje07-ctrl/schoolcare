@@ -99,7 +99,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       storage,
       user,
       userProfile,
-      loading,
+      loading: loading || !auth || !firestore, // Keep loading until services are ready
       error,
   }), [firebaseApp, firestore, auth, storage, user, userProfile, loading, error]);
 
@@ -119,15 +119,6 @@ export const useFirebase = (): FirebaseContextState => {
   }
 
   return context;
-};
-
-/** Hook to access Firebase Auth instance and user state. */
-export const useAuth = () => {
-    const context = useContext(FirebaseContext);
-    if (context === undefined) {
-      throw new Error("useAuth must be used within a FirebaseProvider.");
-    }
-    return context;
 };
 
 /** Hook to access Firestore instance. */

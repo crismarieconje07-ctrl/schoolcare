@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/hooks";
+import { useFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useFirebase();
   const router = useRouter();
 
   useEffect(() => {
