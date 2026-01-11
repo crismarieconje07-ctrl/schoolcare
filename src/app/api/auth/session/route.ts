@@ -1,6 +1,8 @@
+
 import {NextRequest, NextResponse} from 'next/server';
 import {cookies} from 'next/headers';
 import {initializeAdminApp} from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin SDK
 initializeAdminApp();
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Set session expiration to 14 days.
     const expiresIn = 60 * 60 * 24 * 14 * 1000;
-    const sessionCookie = await require('firebase-admin/auth').getAuth().createSessionCookie(idToken, {expiresIn});
+    const sessionCookie = await getAuth().createSessionCookie(idToken, {expiresIn});
     
     // Set cookie policy for session cookie.
     cookies().set('session', sessionCookie, {
