@@ -20,7 +20,7 @@ import {
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
-import { initializeFirebase } from "@/firebase";
+import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile } from "@/lib/types";
 
 // --- Authentication Actions ---
@@ -93,6 +93,7 @@ export async function logOut() {
   try {
     const { auth } = initializeFirebase();
     await signOut(auth);
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -127,7 +128,7 @@ const reportSchema = z.object({
 
 
 export async function submitReport(values: z.infer<typeof reportSchema>) {
-  const { auth, firestore, getSdks } = initializeFirebase();
+  const { auth, firestore, storage } = initializeFirebase();
   const user = auth.currentUser;
   if (!user) {
     return { success: false, error: "You must be logged in to submit a report." };
@@ -136,7 +137,6 @@ export async function submitReport(values: z.infer<typeof reportSchema>) {
   try {
     let imageUrl: string | undefined = undefined;
     if (values.photoDataUri) {
-      const { storage } = getSdks(auth.app); // Assuming storage is needed
       const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}`);
       const uploadResult = await uploadString(storageRef, values.photoDataUri, 'data_url');
       imageUrl = await getDownloadURL(uploadResult.ref);
