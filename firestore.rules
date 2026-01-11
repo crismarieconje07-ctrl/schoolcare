@@ -1,0 +1,157 @@
+/**
+ * @file firestore.rules
+ * @description Security rules for the SchoolFix Firestore database.
+ *
+ * @section Core Philosophy
+ * This ruleset implements a hybrid security model that combines strict user-ownership with role-based access control (RBAC) for administrators. Standard users have full control over their own data (profiles and reports), but are completely isolated from other users' data. A select group of administrators possesses elevated privileges to read and manage all user-submitted reports to ensure the system can be effectively maintained.
+ *
+ * @section Data Structure
+ * - `/users/{userId}`: Each user has a profile document stored at a path corresponding to their unique ID.
+ * - `/users/{userId}/reports/{reportId}`: Reports submitted by a user are stored in a subcollection under their own user document, creating a clear and enforceable ownership hierarchy.
+ * - `/roles_admin/{userId}`: A top-level collection that grants administrative privileges. The existence of a document for a given user ID in this collection designates them as an admin.
+ *
+ * @section Key Security Decisions
+ * - **Default Deny**: All paths are closed by default. Access is only granted through explicit `allow` statements.
+ * - **User Data Privacy**: Users can only access their own data tree (`/users/{userId}`). Listing all users is explicitly forbidden to prevent user enumeration.
+ * - **Admin Privileges**: Administrators are granted read-only access to user profiles and full management access (read, update, delete) to all reports across the entire database. This is critical for system maintenance and report processing.
+ * - **Role Management**: The `/roles_admin` collection is locked down so that only existing administrators can add or remove other administrators, preventing unauthorized privilege escalation.
+ *
+ * @section Denormalization for Authorization
+ * The security model relies on path-based ownership and a dedicated collection for roles, which minimizes the need for denormalization and avoids slow/costly `get()` calls in rules.
+ * - The `Report` entity contains a `userId` field, which is validated against the path on creation to ensure a permanent and immutable link to its owner.
+ *
+ * @section Structural Segregation
+ * This ruleset uses structural segregation for managing roles. By placing admin role markers in a separate `/roles_admin` collection, we can write simple, performant rules to check for admin status without needing to inspect fields within individual user documents.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     * @param userId The user ID to check against the request's auth UID.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the authenticated user is an administrator.
+     * Admin status is granted by the existence of a document in the /roles_admin collection.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Validates that the user profile's internal ID matches the document path ID on creation.
+     */
+    function hasValidUserCreateData(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Enforces immutability for critical user profile fields that should not be changed after creation.
+     */
+    function hasValidUserUpdateData() {
+      // The user's unique ID and role must never be changed.
+      return request.resource.data.id == resource.data.id
+          && request.resource.data.role == resource.data.role;
+    }
+    
+    /**
+     * Validates that the report's internal userId matches the document path owner on creation.
+     */
+    function hasValidReportCreateData(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Enforces immutability for the report's ownership field.
+     */
+    function hasValidReportUpdateData() {
+      // The report's link to its owner (userId) must never change.
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (create) A new user can create their own profile document.
+     * @allow (get, update) An authenticated user can read or update their own profile. An admin can also read any profile.
+     * @deny (list, delete) No one can list all users or delete a user profile.
+     * @principle Restricts access to a user's own data tree and validates relational integrity.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId) && hasValidUserCreateData(userId);
+      allow update: if isOwner(userId) && resource != null && hasValidUserUpdateData();
+      allow delete: if false;
+
+      /**
+       * @description Manages reports submitted by a specific user.
+       * @path /users/{userId}/reports/{reportId}
+       * @allow (create) An authenticated user can create a report for themselves.
+       * @allow (get, list, update, delete) The report owner or an admin can read, list, update, or delete reports.
+       * @deny (create) A user cannot create a report on behalf of another user.
+       * @deny (update, delete) A user cannot modify another user's report.
+       * @principle Enforces document ownership for writes, with an override for admin management.
+       */
+      match /reports/{reportId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && hasValidReportCreateData(userId);
+        allow update: if (isOwner(userId) || isAdmin()) && resource != null && hasValidReportUpdateData();
+        allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+      }
+    }
+
+    /**
+     * @description Manages administrator role documents. Existence of a document grants admin privileges.
+     * @path /roles_admin/{userId}
+     * @allow (get, list, create, update, delete) Only existing admins can view or modify the list of administrators.
+     * @deny Any non-admin user attempting to read or write to this collection.
+     * @principle Secures role management to prevent unauthorized privilege escalation.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+    
+    /**
+     * @description Secures collection group queries for 'reports'.
+     * @path /{path=**}/reports/{reportId}
+     * @allow (list) Allows admins to perform a collection group query to list all reports across all users.
+     * @deny Any non-admin attempting to list all reports.
+     * @deny All write operations at this level.
+     * @principle Provides a secure mechanism for system-wide data access for privileged roles.
+     */
+    match /{path=**}/reports/{reportId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

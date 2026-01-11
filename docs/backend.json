@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the SchoolFix application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., student, teacher, admin)."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role"
+      ]
+    },
+    "Report": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Report",
+      "type": "object",
+      "description": "Represents a submitted report of an issue.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the report entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Report)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the reported issue (e.g., chair, fan, window)."
+        },
+        "roomNumber": {
+          "type": "string",
+          "description": "Room number where the issue is located."
+        },
+        "damageType": {
+          "type": "string",
+          "description": "Type of damage reported."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the issue."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL of the uploaded photo of the issue.",
+          "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the report (e.g., pending, in-progress, completed)."
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority of the report (e.g., low, moderate, urgent)."
+        },
+        "internalNotes": {
+          "type": "string",
+          "description": "Internal notes added by admins."
+        },
+        "reportDate": {
+          "type": "string",
+          "description": "Date and time when the report was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "category",
+        "roomNumber",
+        "damageType",
+        "description",
+        "photoUrl",
+        "status",
+        "priority",
+        "reportDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. The 'userId' parameter identifies the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/reports/{reportId}",
+        "definition": {
+          "entityName": "Report",
+          "schema": {
+            "$ref": "#/backend/entities/Report"
+          },
+          "description": "Stores reports submitted by users.  The 'userId' parameter identifies the owner and the 'reportId' is the id of the report.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (report owner)."
+            },
+            {
+              "name": "reportId",
+              "description": "The unique identifier for the report."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Marks a user as an administrator. Existence of document grants admin privileges.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who is an admin."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, role-based access control, and efficient data retrieval for the SchoolFix application. The primary strategy is to leverage path-based ownership for user reports and a dedicated collection for admin roles. This approach avoids complex `get()` calls in security rules, simplifying rule management and enhancing security.  Specifically, user reports are stored within the `/users/{userId}/reports/{reportId}` path, making ownership explicit and enabling secure list operations. Admin roles are managed via a separate `/roles_admin/{userId}` collection, implementing DBAC (Database-Based Access Control) and eliminating the need for custom claims.  This design promotes clarity of intent and facilitates debuggability, as access control is directly tied to the data structure. Denormalization is not explicitly required in the schemas provided, but if the `Report` schema required any attributes from the `User` document for access control, those attributes would be denormalized into each report to ensure authorization independence. Since access control is based on roles, storing roles in a separate collection enables QAPs by allowing admins to securely list and manage all reports without filtering based on user data."
+  }
+}
