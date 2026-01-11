@@ -4,7 +4,9 @@
 import {
   addDoc,
   collection,
+  doc,
   serverTimestamp,
+  setDoc,
   type Firestore,
 } from "firebase/firestore";
 import {
@@ -47,7 +49,10 @@ export async function submitReport(
 
     const reportsCollection = collection(firestore, "users", user.uid, "reports");
 
-    await addDoc(reportsCollection, {
+    const newReportRef = doc(reportsCollection);
+
+    await setDoc(newReportRef, {
+      id: newReportRef.id,
       userId: user.uid,
       userDisplayName: user.displayName || "Anonymous",
       category: values.category,
@@ -65,5 +70,3 @@ export async function submitReport(
     throw new Error("Failed to submit report. " + error.message);
   }
 }
-
-    

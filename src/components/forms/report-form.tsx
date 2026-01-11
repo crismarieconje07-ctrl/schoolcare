@@ -132,10 +132,6 @@ export function ReportForm() {
             photoFile: photoFile,
         });
         
-        toast({
-            title: "Report Submitted",
-            description: "Thank you! Your report has been successfully submitted.",
-        });
         router.push("/dashboard/submit-report/success");
 
     } catch (error: any) {
