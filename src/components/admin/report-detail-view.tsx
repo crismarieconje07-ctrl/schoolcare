@@ -1,7 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { doc } from "firebase/firestore";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Report } from "@/lib/types";
@@ -9,20 +11,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import Image from "next/image";
-import { StatusBadge } from '../shared/status-badge';
-import { PriorityBadge } from '../shared/priority-badge';
-import { User, MapPin, Calendar, Tag, FileText, StickyNote, Edit } from 'lucide-react';
-import EditReportDialog from './edit-report-dialog';
+import { User, MapPin, Calendar, Tag, FileText, StickyNote, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { PRIORITIES, STATUSES } from '@/lib/constants';
+import { updateReport } from '@/lib/actions';
+import { useState, useEffect } from 'react';
 
 interface ReportDetailProps {
   userId: string;
   reportId: string;
 }
 
+const formSchema = z.object({
+  status: z.enum(STATUSES.map(s => s.value) as [string, ...string[]]),
+  priority: z.enum(PRIORITIES.map(p => p.value) as [string, ...string[]]),
+  internalNotes: z.string().optional(),
+});
+
 const ReportDetail = ({ userId, reportId }: ReportDetailProps) => {
   const firestore = useFirestore();
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reportRef = useMemoFirebase(() => {
     if (!firestore || !userId || !reportId) return null;
@@ -30,6 +43,43 @@ const ReportDetail = ({ userId, reportId }: ReportDetailProps) => {
   }, [firestore, userId, reportId]);
   
   const { data: report, isLoading } = useDoc<Report>(reportRef);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      status: 'Pending',
+      priority: 'Low',
+      internalNotes: '',
+    },
+  });
+
+  useEffect(() => {
+    if (report) {
+      form.reset({
+        status: report.status,
+        priority: report.priority,
+        internalNotes: report.internalNotes || '',
+      });
+    }
+  }, [report, form]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!report) return;
+    setIsSubmitting(true);
+    const result = await updateReport({
+        reportId: report.id,
+        userId: report.userId,
+        ...values,
+    });
+    setIsSubmitting(false);
+
+    if (result.success) {
+      toast({ title: "Report Updated", description: "The report details have been saved." });
+    } else {
+      toast({ variant: "destructive", title: "Update Failed", description: result.error });
+    }
+  }
+
 
   if (isLoading) {
     return <ReportDetailSkeleton />;
@@ -40,62 +90,111 @@ const ReportDetail = ({ userId, reportId }: ReportDetailProps) => {
   }
 
   return (
-    <>
-        <Card>
-            <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle className="text-2xl font-bold font-headline">Report Details</CardTitle>
-                    <CardDescription>Review and manage the submitted issue.</CardDescription>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold font-headline">Report Details</CardTitle>
+        <CardDescription>Review and manage the submitted issue.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                    <InfoSection icon={Tag} label="Category" value={report.category} />
+                    <InfoSection icon={MapPin} label="Room" value={report.roomNumber} />
+                    <InfoSection icon={User} label="Reported By" value={report.userDisplayName} />
+                    <InfoSection icon={Calendar} label="Date" value={report.createdAt ? format(report.createdAt.toDate(), "PPPp") : 'N/A'} />
                 </div>
-                <Button onClick={() => setIsEditDialogOpen(true)}>
-                    <Edit className="mr-2 h-4 w-4"/>
-                    Edit Report
-                </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
+
                 {report.imageUrl && (
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
-                        <Image src={report.imageUrl} alt="Report image" fill className="object-cover" />
+                    <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Tag className="h-4 w-4" /> Photo
+                        </h3>
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
+                            <Image src={report.imageUrl} alt="Report image" fill className="object-cover" />
+                        </div>
                     </div>
                 )}
                 
-                <div className="grid md:grid-cols-2 gap-6">
-                    <InfoSection icon={User} label="Submitted By" value={report.userDisplayName} />
-                    <InfoSection icon={MapPin} label="Location" value={`Room ${report.roomNumber}`} />
-                    <InfoSection icon={Calendar} label="Reported On" value={report.createdAt ? format(report.createdAt.toDate(), "PPPp") : 'N/A'} />
-                    <InfoSection icon={Tag} label="Category" value={report.category} />
-                    
-                    <div className="flex items-start gap-3">
-                        <StatusBadge status={report.status} className="mt-1" />
-                    </div>
-                    <div className="flex items-start gap-3">
-                        <PriorityBadge priority={report.priority} className="mt-1" />
-                    </div>
-
-                    <div className="md:col-span-2">
-                        <InfoSection icon={FileText} label="Full Description" value={report.description} isBlock />
-                    </div>
-                    
-                    {report.internalNotes && (
-                        <div className="md:col-span-2">
-                            <InfoSection icon={StickyNote} label="Internal Notes" value={report.internalNotes} isBlock />
-                        </div>
-                    )}
+                <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <FileText className="h-4 w-4" /> Description
+                    </h3>
+                    <p className="text-base">{report.description}</p>
                 </div>
-            </CardContent>
-        </Card>
-        <EditReportDialog report={report} isOpen={isEditDialogOpen} setIsOpen={setIsEditDialogOpen} />
-    </>
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="priority"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Priority</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                
+                <FormField
+                    control={form.control}
+                    name="internalNotes"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className="flex items-center gap-2"><StickyNote className="h-4 w-4" />Internal Notes</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="Add notes for the maintenance team..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 };
 
-const InfoSection = ({ icon: Icon, label, value, isBlock = false }: { icon: React.ElementType, label: string, value: string, isBlock?: boolean }) => (
-    <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-semibold text-muted-foreground">{label}</p>
-        </div>
-        <p className={isBlock ? "text-base pl-6" : "text-base font-medium pl-6"}>{value}</p>
+const InfoSection = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string }) => (
+    <div className="space-y-1">
+        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Icon className="h-4 w-4" />
+            {label}
+        </h3>
+        <p className="text-base font-medium">{value}</p>
     </div>
 );
 
@@ -106,19 +205,16 @@ const ReportDetailSkeleton = () => (
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-64 mt-1" />
         </CardHeader>
-        <CardContent className="space-y-6">
-            <Skeleton className="w-full aspect-video rounded-lg" />
+        <CardContent className="space-y-8">
             <div className="grid md:grid-cols-2 gap-6">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-8 w-24" />
-                <div className="md:col-span-2">
-                    <Skeleton className="h-20 w-full" />
-                </div>
             </div>
+            <Skeleton className="w-full aspect-video rounded-lg" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-10 w-32" />
         </CardContent>
     </Card>
 );
