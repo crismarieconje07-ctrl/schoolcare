@@ -31,7 +31,6 @@ export default function DashboardPage() {
         {CATEGORIES.map((category) => (
           <Button
             key={category.value}
-            variant="outline"
             className={cn(
               "h-24 flex-col gap-2 justify-center text-white hover:text-white transition-all hover:opacity-90",
               getCategoryColor(category)
