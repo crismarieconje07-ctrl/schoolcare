@@ -13,11 +13,11 @@ import { cn } from '@/lib/utils';
 import type { Category } from '@/lib/types';
 
 const categoryColors: Record<Category, string> = {
-    chair: 'hsl(215 19% 47%)',
+    chair: 'hsl(221 39% 49%)',
     fan: 'hsl(198 93% 62%)',
-    window: 'hsl(200 89% 48%)',
-    light: 'hsl(45 95% 55%)',
-    sanitation: 'hsl(139 63% 47%)',
+    window: 'hsl(204 90% 53%)',
+    light: 'hsl(54 96% 50%)',
+    sanitation: 'hsl(142 69% 45%)',
     other: 'hsl(215 14% 65%)',
 };
 
