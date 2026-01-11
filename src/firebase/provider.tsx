@@ -51,15 +51,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    // Services are not yet available, keep loading and set error if they don't appear.
+    // Services are not yet available, keep loading.
     if (!auth || !firestore) {
       setLoading(true);
-      setError(new Error("Auth or Firestore service not provided."));
       return;
     }
-
-    // Start with a loading state until the first auth check completes.
-    setLoading(true);
 
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -82,7 +78,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         } else {
           setUserProfile(null);
         }
-        // Only set loading to false after the initial auth state has been determined.
         setLoading(false);
       },
       (error) => { // Auth listener error
