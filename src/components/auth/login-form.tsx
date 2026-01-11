@@ -29,7 +29,6 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const id = useId();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,7 +61,7 @@ export function LoginForm() {
           control={form.control}
           name="email"
           render={({ field }) => (
-            <FormItem id={id}>
+            <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input placeholder="m@example.com" {...field} />

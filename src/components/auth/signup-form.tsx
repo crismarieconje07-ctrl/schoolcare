@@ -33,7 +33,6 @@ export function SignUpForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { auth } = useAuth();
-  const id = useId();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,9 +47,8 @@ export function SignUpForm() {
     setIsLoading(true);
     const result = await signUp(values);
     
-    if (result.success && auth.currentUser) {
-      await createUserProfile(auth.currentUser, values.displayName);
-      // After successful sign-up, log the user in to get an authenticated session
+    if (result.success && result.user) {
+      await createUserProfile(result.user, values.displayName);
       router.push("/dashboard");
     } else {
       toast({
@@ -69,7 +67,7 @@ export function SignUpForm() {
           control={form.control}
           name="displayName"
           render={({ field }) => (
-            <FormItem id={id}>
+            <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
