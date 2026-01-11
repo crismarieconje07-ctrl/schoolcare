@@ -53,6 +53,7 @@ export function ReportForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
+  const servicesReady = !!user && !!firestore && !!storage;
   const defaultCategory = searchParams.get("category") as Category | null;
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -116,7 +117,7 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !firestore || !storage) {
+    if (!servicesReady) {
         toast({
             variant: "destructive",
             title: "Submission Failed",
@@ -267,7 +268,7 @@ export function ReportForm() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading || !servicesReady}>
               {(isSubmitting || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Report
             </Button>
