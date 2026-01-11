@@ -17,6 +17,7 @@ import {
 } from "firebase/storage";
 import type { User } from "firebase/auth";
 import type { Category } from "./types";
+import type { FirebaseContextState } from "@/firebase";
 
 interface ReportData {
     category: Category;
@@ -36,11 +37,15 @@ async function uploadPhoto(
 }
 
 export async function submitReport(
-  firestore: Firestore,
-  storage: FirebaseStorage,
-  user: User,
+  firebase: FirebaseContextState,
   values: ReportData
 ) {
+  const { firestore, storage, user } = firebase;
+
+  if (!firestore || !storage || !user) {
+    throw new Error("Authentication not ready. Please wait and try again.");
+  }
+
   try {
     let imageUrl: string | undefined = undefined;
     if (values.photoFile) {

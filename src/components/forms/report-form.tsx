@@ -47,7 +47,8 @@ export function ReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, firestore, storage, loading: authLoading } = useFirebase();
+  const firebaseState = useFirebase();
+  const { loading: authLoading } = firebaseState;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -116,19 +117,18 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Gate submission: Check if services are ready.
-    if (!user || !firestore || !storage) {
-        toast({
-            variant: "destructive",
-            title: "Authentication not ready",
-            description: "Please wait a moment and try again.",
-        });
-        return;
+    if (authLoading) {
+      toast({
+        variant: 'destructive',
+        title: 'Please wait',
+        description: 'Authentication is still initializing.',
+      });
+      return;
     }
 
     setIsSubmitting(true);
     try {
-        await submitReport(firestore, storage, user, {
+        await submitReport(firebaseState, {
             ...values,
             photoFile: photoFile,
         });
