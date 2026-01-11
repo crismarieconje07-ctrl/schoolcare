@@ -15,11 +15,16 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile, Category } from "@/lib/types";
+import { headers } from 'next/headers';
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { initializeAdminApp } from "./firebase-admin";
 
 // --- Authentication Actions ---
 
@@ -120,6 +125,85 @@ export async function suggestCategory(
 }
 
 // --- Report Actions ---
+
+const reportSchema = z.object({
+  category: z.enum(['chair', 'fan', 'window', 'light', 'sanitation', 'other']),
+  roomNumber: z.string().min(1, "Room number is required."),
+  description: z.string().min(10, "Description must be at least 10 characters."),
+});
+
+
+export async function createReport(formData: FormData) {
+  try {
+    const { firestore, storage } = initializeFirebase();
+    await initializeAdminApp();
+    
+    const headersList = headers();
+    const idToken = headersList.get('X-Firebase-AppCheck');
+
+    if (!idToken) {
+      return { success: false, error: "Authentication token is missing. Please log in." };
+    }
+
+    const decodedToken = await getAdminAuth().verifyIdToken(idToken, true);
+    const userId = decodedToken.uid;
+
+    const values = reportSchema.safeParse({
+        category: formData.get('category'),
+        roomNumber: formData.get('roomNumber'),
+        description: formData.get('description'),
+    });
+
+    if (!values.success) {
+      return { success: false, error: "Invalid report data." };
+    }
+
+    const { category, roomNumber, description } = values.data;
+    const photo = formData.get('photo') as File | null;
+
+    // Fetch user profile
+    const userDocRef = doc(firestore, "users", userId);
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      return { success: false, error: "User profile not found." };
+    }
+    const userProfile = userDoc.data() as UserProfile;
+
+    let imageUrl: string | undefined = undefined;
+    if (photo) {
+      const photoBuffer = Buffer.from(await photo.arrayBuffer());
+      const storageRef = ref(storage, `reports/${userId}/${Date.now()}_${photo.name}`);
+      await uploadBytes(storageRef, photoBuffer, { contentType: photo.type });
+      imageUrl = await getDownloadURL(storageRef);
+    }
+
+    const reportsCollection = collection(firestore, "users", userId, "reports");
+    const newReportRef = doc(reportsCollection);
+
+    await setDoc(newReportRef, {
+      id: newReportRef.id,
+      userId: userId,
+      userDisplayName: userProfile.displayName || userProfile.email || "User",
+      category,
+      roomNumber,
+      description,
+      imageUrl,
+      status: "Pending",
+      priority: "Low",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    revalidatePath("/dashboard");
+    return { success: true };
+
+  } catch (error: any) {
+    console.error("createReport error:", error);
+    return { success: false, error: error.message || "Failed to create report." };
+  }
+}
+
+
 const updateReportSchema = z.object({
   reportId: z.string(),
   userId: z.string(),

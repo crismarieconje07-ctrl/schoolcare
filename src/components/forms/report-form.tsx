@@ -28,8 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { suggestCategory } from "@/lib/actions";
-import { submitReport } from "@/lib/client-actions";
+import { suggestCategory, createReport } from "@/lib/actions";
 import { CATEGORIES } from "@/lib/constants";
 import Image from "next/image";
 import { useFirebase } from "@/firebase";
@@ -117,19 +116,32 @@ export function ReportForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    try {
-        await submitReport({
-            ...values,
-            photoFile: photoFile,
-        });
-        
-        router.push("/dashboard/submit-report/success");
 
+    const formData = new FormData();
+    formData.append('category', values.category);
+    formData.append('roomNumber', values.roomNumber);
+    formData.append('description', values.description);
+    if (photoFile) {
+        formData.append('photo', photoFile);
+    }
+
+    try {
+        const result = await createReport(formData);
+
+        if (result.success) {
+            router.push("/dashboard/submit-report/success");
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Submission Failed",
+                description: result.error || "An unknown error occurred.",
+            });
+        }
     } catch (error: any) {
         toast({
             variant: "destructive",
             title: "Submission Failed",
-            description: error.message || "An unknown error occurred.",
+            description: error.message || "An unexpected error occurred.",
         });
     } finally {
         setIsSubmitting(false);
