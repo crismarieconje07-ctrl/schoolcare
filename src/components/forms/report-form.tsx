@@ -53,7 +53,6 @@ export function ReportForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
-  const servicesReady = !!user && !!firestore && !!storage;
   const defaultCategory = searchParams.get("category") as Category | null;
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -102,7 +101,7 @@ export function ReportForm() {
     setIsSuggesting(false);
 
     if (result.success && result.category) {
-      form.setValue("category", result.category);
+      form.setValue("category", result.category as Category);
       toast({
         title: "Category Suggested",
         description: `We've suggested the "${result.category}" category based on your input.`,
@@ -117,7 +116,7 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!servicesReady) {
+    if (!user || !firestore || !storage) {
         toast({
             variant: "destructive",
             title: "Submission Failed",
@@ -268,7 +267,7 @@ export function ReportForm() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading || !servicesReady}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
               {(isSubmitting || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Report
             </Button>
