@@ -56,38 +56,39 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (firebaseUser) => { 
-        setUser(firebaseUser);
-        if (firebaseUser) {
-          try {
-            const userDocRef = doc(firestore, "users", firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-              setUserProfile(userDoc.data() as UserProfile);
-            } else {
-              setUserProfile(null); 
-            }
-          } catch(e) {
-            console.error("FirebaseProvider: Error fetching user profile", e);
-            setError(e as Error);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(firestore, "users", firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data() as UserProfile);
+          } else {
+            // If user exists in Auth but not Firestore, maybe they are new
+            // Or there was an error during profile creation.
             setUserProfile(null);
           }
-        } else {
+        } catch (e) {
+          console.error("FirebaseProvider: Error fetching user profile", e);
+          setError(e as Error);
           setUserProfile(null);
         }
-        setLoading(false);
-      },
-      (error) => { // Auth listener error
+      } else {
+        // No user is signed in
+        setUserProfile(null);
+      }
+      // This is the key: loading is false only after the auth state has been confirmed.
+      setLoading(false);
+    }, (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setError(error);
         setUser(null);
         setUserProfile(null);
         setLoading(false);
-      }
-    );
-    return () => unsubscribe(); // Cleanup
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on unmount
   }, [auth, firestore]); 
 
   // Memoize the context value

@@ -116,6 +116,7 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    // Gate submission: Check if services are ready.
     if (!user || !firestore || !storage) {
         toast({
             variant: "destructive",
