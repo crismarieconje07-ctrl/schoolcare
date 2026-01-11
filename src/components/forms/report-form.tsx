@@ -49,6 +49,11 @@ export function ReportForm() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      category: undefined,
+      roomNumber: "",
+      description: "",
+    },
   });
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
