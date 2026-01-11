@@ -136,7 +136,7 @@ export function ReportForm() {
             title: "Report Submitted",
             description: "Thank you! Your report has been successfully submitted.",
         });
-        router.push("/dashboard");
+        router.push("/dashboard/submit-report/success");
 
     } catch (error: any) {
         toast({
