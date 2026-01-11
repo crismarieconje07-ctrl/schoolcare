@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -27,9 +28,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { submitReport, suggestCategory } from "@/lib/actions";
+import { suggestCategory } from "@/lib/actions";
+import { submitReport } from "@/lib/client-actions";
 import { CATEGORIES } from "@/lib/constants";
 import Image from "next/image";
+import { useAuth } from "@/firebase";
 
 const formSchema = z.object({
   category: z.enum(CATEGORIES.map(c => c.value) as [string, ...string[]], {
@@ -42,6 +45,7 @@ const formSchema = z.object({
 export function ReportForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user, firestore, storage } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -102,25 +106,36 @@ export function ReportForm() {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
-    const result = await submitReport({
-      ...values,
-      photoDataUri: photoPreview ?? undefined,
-    });
-    setIsSubmitting(false);
+    if (!user || !firestore || !storage) {
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "You must be logged in to submit a report.",
+        });
+        return;
+    }
 
-    if (result.success) {
-      toast({
-        title: "Report Submitted",
-        description: "Thank you! Your report has been successfully submitted.",
-      });
-      router.push("/dashboard");
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Submission Failed",
-        description: result.error,
-      });
+    setIsSubmitting(true);
+    try {
+        await submitReport(firestore, storage, user, {
+            ...values,
+            photoFile: photoFile,
+        });
+        
+        toast({
+            title: "Report Submitted",
+            description: "Thank you! Your report has been successfully submitted.",
+        });
+        router.push("/dashboard");
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: error.message || "An unknown error occurred.",
+        });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -256,3 +271,5 @@ export function ReportForm() {
     </Card>
   );
 }
+
+    

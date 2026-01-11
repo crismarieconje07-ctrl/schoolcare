@@ -16,7 +16,6 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
@@ -40,10 +39,8 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       values.password
     );
     
-    // Update display name in Firebase Auth
     await updateProfile(userCredential.user, { displayName: values.displayName });
 
-    // The user profile document will be created on the client side now
     return { success: true, user: userCredential.user };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -61,7 +58,6 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
     await signInWithEmailAndPassword(auth, values.email, values.password);
     return { success: true };
   } catch (error: any) {
-    // Provide more specific error messages from Firebase
     if (error.code) {
       switch (error.code) {
         case 'auth/user-not-found':
@@ -88,9 +84,7 @@ export async function logOut() {
   }
 }
 
-
 export async function createUserProfile(user: User, displayName: string) {
-    "use server";
     const { firestore } = initializeFirebase();
   
     const role = user.email === "admin@schoolcare.com" ? "admin" : "student";
@@ -104,6 +98,7 @@ export async function createUserProfile(user: User, displayName: string) {
   
     try {
       await setDoc(doc(firestore, "users", user.uid), userProfile);
+      revalidatePath("/", "layout");
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -130,53 +125,6 @@ export async function suggestCategory(
 }
 
 // --- Report Actions ---
-const reportSchema = z.object({
-  category: z.enum(['chair', 'fan', 'window', 'light', 'sanitation', 'other']),
-  roomNumber: z.string().min(1, "Room number is required"),
-  description: z.string().min(1, "Description is required"),
-  photoDataUri: z.string().optional(),
-});
-
-
-export async function submitReport(values: z.infer<typeof reportSchema>) {
-  const { auth, firestore, storage } = initializeFirebase();
-  const user = auth.currentUser;
-  if (!user) {
-    return { success: false, error: "You must be logged in to submit a report." };
-  }
-
-  try {
-    let imageUrl: string | undefined = undefined;
-    if (values.photoDataUri) {
-      const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}`);
-      const uploadResult = await uploadString(storageRef, values.photoDataUri, 'data_url');
-      imageUrl = await getDownloadURL(uploadResult.ref);
-    }
-
-    const reportsCollection = collection(firestore, 'users', user.uid, 'reports');
-
-    await addDoc(reportsCollection, {
-      userId: user.uid,
-      userDisplayName: user.displayName || "Anonymous",
-      category: values.category,
-      roomNumber: values.roomNumber,
-      description: values.description,
-      imageUrl,
-      status: "Pending",
-      priority: "Low",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error: any) {
-    console.error("submitReport error: ", error);
-    return { success: false, error: "Failed to submit report. " + error.message };
-  }
-}
-
-
 const updateReportSchema = z.object({
   reportId: z.string(),
   userId: z.string(),
@@ -187,12 +135,7 @@ const updateReportSchema = z.object({
 
 
 export async function updateReport(values: z.infer<typeof updateReportSchema>) {
-    const { auth, firestore } = initializeFirebase();
-   const user = auth.currentUser;
-   if (!user) {
-    return { success: false, error: "Authentication required." };
-  }
-  // In a real app, we'd check for admin role here from a trusted source
+    const { firestore } = initializeFirebase();
   
   try {
     const reportRef = doc(firestore, "users", values.userId, "reports", values.reportId);
@@ -214,3 +157,5 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     return { success: false, error: "Failed to update report. " + error.message };
   }
 }
+
+    
