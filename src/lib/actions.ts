@@ -161,7 +161,8 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     revalidatePath("/dashboard/admin");
     return { success: true };
 
-  } catch (error: any) {
+  } catch (error: any)
+{
     return { success: false, error: "Failed to update report. " + error.message };
   }
 }
