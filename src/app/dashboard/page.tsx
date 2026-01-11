@@ -5,20 +5,19 @@ import UserReportsTable from '@/components/dashboard/user-reports-table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks';
+import { useAuth } from '@/firebase';
 import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/components/shared/category-icon';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import type { Category } from '@/lib/types';
 
 const categoryColors: Record<Category, string> = {
-    chair: 'hsl(221 39% 49%)',
-    fan: 'hsl(198 93% 62%)',
-    window: 'hsl(204 90% 53%)',
-    light: 'hsl(54 96% 50%)',
-    sanitation: 'hsl(142 69% 45%)',
-    other: 'hsl(215 14% 65%)',
+    chair: 'hsl(var(--category-chairs))',
+    fan: 'hsl(var(--category-fans))',
+    window: 'hsl(var(--category-windows))',
+    light: 'hsl(var(--category-lights))',
+    sanitation: 'hsl(var(--category-sanitation))',
+    other: 'hsl(var(--category-others))',
 };
 
 export default function DashboardPage() {
@@ -53,15 +52,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My Reports</CardTitle>
-          <CardDescription>A list of all the reports you have submitted.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UserReportsTable />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold font-headline">My Reports</h2>
+          <p className="text-muted-foreground">A list of all the reports you have submitted.</p>
+        </div>
+        <UserReportsTable />
+      </div>
     </div>
   );
 }

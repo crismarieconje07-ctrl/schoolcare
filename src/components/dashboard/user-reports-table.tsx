@@ -1,25 +1,18 @@
+
 "use client";
 
-import { useMemo } from "react";
 import { collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import type { Report } from "@/lib/types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { PriorityBadge } from "@/components/shared/priority-badge";
 import { CategoryIcon } from "@/components/shared/category-icon";
 import { format } from "date-fns";
 import { CATEGORIES } from "@/lib/constants";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
-export default function UserReportsTable() {
+export default function UserReportsList() {
   const { user } = useUser();
   const firestore = useFirestore();
 
@@ -36,52 +29,43 @@ export default function UserReportsTable() {
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
+      <div className="space-y-4">
+        {[...Array(2)].map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
         ))}
       </div>
     );
   }
 
   if (!reports || reports.length === 0) {
-    return <p className="text-center text-muted-foreground">You haven't submitted any reports yet.</p>
+    return (
+      <Card className="flex items-center justify-center h-40">
+        <p className="text-center text-muted-foreground">You haven't submitted any reports yet.</p>
+      </Card>
+    );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[80px]">Category</TableHead>
-          <TableHead>Room</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Priority</TableHead>
-          <TableHead className="text-right">Submitted</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {reports.map((report) => (
-          <TableRow key={report.id}>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <CategoryIcon category={report.category} />
+    <div className="space-y-4">
+      {reports.map((report) => (
+        <Card key={report.id}>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <CategoryIcon category={report.category} />
+              <div>
+                <p className="font-bold text-lg">{getCategoryLabel(report.category)}</p>
+                <p className="text-sm text-muted-foreground">Room {report.roomNumber}</p>
               </div>
-            </TableCell>
-            <TableCell className="font-medium">{report.roomNumber}</TableCell>
-            <TableCell className="max-w-xs truncate">{report.description}</TableCell>
-            <TableCell>
+            </div>
+            <div className="text-right">
               <StatusBadge status={report.status} />
-            </TableCell>
-            <TableCell>
-              <PriorityBadge priority={report.priority} />
-            </TableCell>
-            <TableCell className="text-right">
-              {report.createdAt ? format(report.createdAt.toDate(), "MMM d, yyyy") : 'N/A'}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+              <p className="text-sm text-muted-foreground mt-1">
+                {report.createdAt ? format(report.createdAt.toDate(), "MMM d, h:mm a") : 'N/A'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
