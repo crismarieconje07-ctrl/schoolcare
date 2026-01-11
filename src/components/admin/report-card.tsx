@@ -1,13 +1,12 @@
+
 "use client";
 
 import { useState } from 'react';
 import type { Report } from "@/lib/types";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { CategoryIcon } from "@/components/shared/category-icon";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { formatDistanceToNow } from "date-fns";
-import { User, Calendar, MapPin, Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import EditReportDialog from "./edit-report-dialog";
 
 interface ReportCardProps {
@@ -19,33 +18,21 @@ const ReportCard = ({ report }: ReportCardProps) => {
 
   return (
     <>
-      <Card onClick={() => setIsDialogOpen(true)} className="cursor-pointer hover:shadow-md transition-shadow">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-              <CategoryIcon category={report.category} />
-              <PriorityBadge priority={report.priority} />
-          </div>
-          <CardTitle className="pt-2">{report.roomNumber}</CardTitle>
-          <CardDescription className="line-clamp-2 h-[40px]">{report.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Separator />
-          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span>{report.userDisplayName}</span>
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-2">
+                <h3 className="font-bold">{report.roomNumber} - {report.description}</h3>
+                <div className="flex items-center gap-4">
+                    <PriorityBadge priority={report.priority} />
+                    {report.imageUrl && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <ImageIcon className="h-4 w-4" />
+                            <span>Photo Attached</span>
+                        </div>
+                    )}
+                </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span>{report.createdAt ? formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true }) : ''}</span>
-            </div>
-            {report.imageUrl && (
-              <div className="flex items-center gap-2 text-blue-500">
-                <ImageIcon className="h-4 w-4" />
-                <span>Image Attached</span>
-              </div>
-            )}
-          </div>
+            <Button onClick={() => setIsDialogOpen(true)}>View Details</Button>
         </CardContent>
       </Card>
       <EditReportDialog report={report} isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
