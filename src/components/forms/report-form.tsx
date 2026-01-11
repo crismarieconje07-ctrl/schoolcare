@@ -119,8 +119,8 @@ export function ReportForm() {
     if (!user || !firestore || !storage) {
         toast({
             variant: "destructive",
-            title: "Submission Failed",
-            description: "Authentication not ready. Please try again.",
+            title: "Authentication not ready",
+            description: "Please wait a moment and try again.",
         });
         return;
     }
