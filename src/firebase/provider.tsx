@@ -51,7 +51,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    // Services are not yet available, keep loading.
     if (!auth || !firestore) {
       setLoading(true);
       return;
@@ -99,7 +98,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       storage,
       user,
       userProfile,
-      loading: loading || !auth || !firestore, // Keep loading until services are ready
+      loading,
       error,
   }), [firebaseApp, firestore, auth, storage, user, userProfile, loading, error]);
 

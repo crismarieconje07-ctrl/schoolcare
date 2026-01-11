@@ -120,7 +120,7 @@ export function ReportForm() {
         toast({
             variant: "destructive",
             title: "Submission Failed",
-            description: "Authentication not ready. Please try again in a moment.",
+            description: "Authentication not ready. Please try again.",
         });
         return;
     }
