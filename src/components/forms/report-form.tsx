@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,6 +33,7 @@ import { submitReport } from "@/lib/client-actions";
 import { CATEGORIES } from "@/lib/constants";
 import Image from "next/image";
 import { useAuth } from "@/firebase";
+import type { Category } from "@/lib/types";
 
 const formSchema = z.object({
   category: z.enum(CATEGORIES.map(c => c.value) as [string, ...string[]], {
@@ -44,6 +45,7 @@ const formSchema = z.object({
 
 export function ReportForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { user, firestore, storage } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,14 +53,22 @@ export function ReportForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
+  const defaultCategory = searchParams.get("category") as Category | null;
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      category: undefined,
+      category: defaultCategory || undefined,
       roomNumber: "",
       description: "",
     },
   });
+
+  useEffect(() => {
+    if (defaultCategory) {
+      form.setValue('category', defaultCategory);
+    }
+  }, [defaultCategory, form]);
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -172,7 +182,7 @@ export function ReportForm() {
               <FormLabel>Photo (Optional)</FormLabel>
               {photoPreview ? (
                 <div className="relative w-full aspect-video rounded-md overflow-hidden">
-                  <Image src={photoPreview} alt="Photo preview" layout="fill" objectFit="cover" />
+                  <Image src={photoPreview} alt="Photo preview" fill objectFit="cover" />
                   <Button
                     type="button"
                     variant="destructive"
@@ -271,5 +281,3 @@ export function ReportForm() {
     </Card>
   );
 }
-
-    
