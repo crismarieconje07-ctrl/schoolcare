@@ -47,7 +47,7 @@ export function ReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, firestore, storage } = useAuth();
+  const { user, firestore, storage, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -120,7 +120,7 @@ export function ReportForm() {
         toast({
             variant: "destructive",
             title: "Submission Failed",
-            description: "You must be logged in to submit a report.",
+            description: "Authentication not ready. Please try again in a moment.",
         });
         return;
     }
@@ -271,8 +271,8 @@ export function ReportForm() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
+              {(isSubmitting || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Report
             </Button>
           </CardFooter>
