@@ -267,7 +267,7 @@ export function ReportForm() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || authLoading || !user || !firestore || !storage}>
               {(isSubmitting || authLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Report
             </Button>
