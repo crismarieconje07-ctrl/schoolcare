@@ -28,7 +28,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div>
         {loading ? (
-          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-48 mb-1" />
         ) : (
           <h1 className="text-3xl font-bold font-headline">
             Hi, {userProfile?.displayName?.split(' ')[0] || 'there'}

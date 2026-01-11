@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useId } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { signUp, createUserProfile } from "@/lib/actions";
-import { useAuth } from "@/firebase";
+import { useAuth } from "@/lib/hooks";
 
 
 const formSchema = z.object({
@@ -48,8 +48,20 @@ export function SignUpForm() {
     const result = await signUp(values);
     
     if (result.success && result.user) {
-      await createUserProfile(result.user, values.displayName);
-      router.push("/dashboard");
+      const profileResult = await createUserProfile(result.user.uid, {
+        email: values.email,
+        displayName: values.displayName,
+      });
+
+      if (profileResult.success) {
+        router.push("/dashboard");
+      } else {
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: profileResult.error || "Could not create user profile.",
+        });
+      }
     } else {
       toast({
         variant: "destructive",

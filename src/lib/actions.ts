@@ -20,7 +20,6 @@ import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile } from "@/lib/types";
-import type { User } from "firebase/auth";
 
 // --- Authentication Actions ---
 
@@ -39,8 +38,10 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       values.password
     );
     
+    // We only update the auth user's display name. Profile doc is separate.
     await updateProfile(userCredential.user, { displayName: values.displayName });
 
+    // Return the full user object on success
     return { success: true, user: userCredential.user };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -84,20 +85,27 @@ export async function logOut() {
   }
 }
 
-export async function createUserProfile(user: User, displayName: string) {
+const userProfileSchema = z.object({
+  email: z.string().email(),
+  displayName: z.string(),
+});
+
+export async function createUserProfile(userId: string, values: z.infer<typeof userProfileSchema>) {
     const { firestore } = initializeFirebase();
   
-    const role = user.email === "admin@schoolcare.com" ? "admin" : "student";
+    // Determine role based on email, for example
+    const role = values.email === "admin@schoolcare.com" ? "admin" : "student";
   
     const userProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email,
-      displayName: displayName,
+      uid: userId,
+      email: values.email,
+      displayName: values.displayName,
       role: role,
     };
   
     try {
-      await setDoc(doc(firestore, "users", user.uid), userProfile);
+      await setDoc(doc(firestore, "users", userId), userProfile);
+      // Revalidate the root to ensure layouts using this data are updated.
       revalidatePath("/", "layout");
       return { success: true };
     } catch (error: any) {
@@ -157,5 +165,3 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     return { success: false, error: "Failed to update report. " + error.message };
   }
 }
-
-    
