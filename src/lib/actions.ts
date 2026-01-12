@@ -21,7 +21,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { z } from "zod";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
-import type { UserProfile, Category } from "@/lib/types";
+import type { UserProfile, Category, UserRole } from "@/lib/types";
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from "./firebase-admin";
 import { cookies } from "next/headers";
@@ -49,7 +49,7 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     await updateProfile(user, { displayName: values.displayName });
 
     // 3. Create the user profile document in Firestore
-    const role = values.email === "admin@schoolcare.com" ? "admin" : "student";
+    const role: UserRole = values.email === "admin@schoolcare.com" ? "admin" : "student";
     const userProfile: UserProfile = {
       uid: user.uid,
       email: values.email,
@@ -83,7 +83,7 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
     if (error.code) {
       switch (error.code) {
         case 'auth/user-not-found':
-        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
           return { success: false, error: 'Invalid credentials. Please try again.' };
         case 'auth/invalid-email':
           return { success: false, error: 'The email address is not valid.' };
@@ -163,6 +163,7 @@ export async function createReport(formData: FormData) {
     const userDocRef = doc(firestore, "users", userId);
     const userDoc = await getDoc(userDocRef);
     if (!userDoc.exists()) {
+      // This should ideally not happen if ensureUserProfile is working correctly
       return { success: false, error: "User profile not found." };
     }
     const userProfile = userDoc.data() as UserProfile;
@@ -193,6 +194,7 @@ export async function createReport(formData: FormData) {
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/admin");
     return { success: true };
 
   } catch (error: any) {
@@ -231,6 +233,7 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     await updateDoc(reportRef, updateData);
 
     revalidatePath("/dashboard/admin");
+    revalidatePath(`/dashboard/admin/report/${values.userId}/${values.reportId}`);
     return { success: true };
 
   } catch (error: any)

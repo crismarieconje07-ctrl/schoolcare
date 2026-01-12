@@ -82,11 +82,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes and manage session cookie
   useEffect(() => {
-    if (!auth || !firestore) {
-      setLoading(true);
-      return;
-    }
-
+    setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
