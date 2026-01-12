@@ -58,13 +58,10 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     };
     await setDoc(doc(firestore, "users", user.uid), userProfile);
     
-    // Revalidate the root to ensure layouts using this data are updated.
     revalidatePath("/", "layout");
     
-    // Return the full user object on complete success
     return { success: true, user: user };
   } catch (error: any) {
-    // This will catch failures from any of the steps above
     return { success: false, error: error.message };
   }
 }

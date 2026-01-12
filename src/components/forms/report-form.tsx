@@ -182,7 +182,7 @@ export function ReportForm() {
               <FormLabel>Photo (Optional)</FormLabel>
               {photoPreview ? (
                 <div className="relative w-full aspect-video rounded-md overflow-hidden">
-                  <Image src={photoPreview} alt="Photo preview" fill objectFit="cover" />
+                  <Image src={photoPreview} alt="Photo preview" fill className="object-cover" sizes="100vw" />
                   <Button
                     type="button"
                     variant="destructive"
