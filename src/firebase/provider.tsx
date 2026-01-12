@@ -90,9 +90,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        // ** CRITICAL FIX: If the user is anonymous, reject and sign out immediately. **
         if (firebaseUser?.isAnonymous) {
-          await signOut(auth); // Actively sign out the anonymous user
+          await signOut(auth);
           setUser(null);
           setUserProfile(null);
           setLoading(false);
@@ -100,14 +99,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
 
         if (firebaseUser) {
-          // User is logged in and is NOT anonymous
           const profile = await ensureUserProfile(firestore, firebaseUser);
 
           setUser(firebaseUser);
           setUserProfile(profile);
 
           if (profile) {
-            // Set session cookie only for valid, non-anonymous users with profiles
             try {
               const idToken = await firebaseUser.getIdToken(true);
               await fetch('/api/auth/session', {
@@ -117,14 +114,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               });
             } catch (sessionError) {
               console.error("Failed to set session cookie:", sessionError);
-              // Don't block login if session cookie fails, but log it.
             }
           }
         } else {
-          // User is logged out
           setUser(null);
           setUserProfile(null);
-          // Clear session cookie
            await fetch('/api/auth/session', { method: 'DELETE' });
         }
       } catch (e) {
