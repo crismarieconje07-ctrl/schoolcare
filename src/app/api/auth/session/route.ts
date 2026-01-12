@@ -4,10 +4,10 @@ import {cookies} from 'next/headers';
 import {initializeAdminApp} from '@/lib/firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 
-// Initialize Firebase Admin SDK
-initializeAdminApp();
-
 export async function POST(request: NextRequest) {
+  const adminApp = initializeAdminApp();
+  const auth = getAuth(adminApp);
+
   try {
     const body = await request.json();
     const idToken = body.idToken;
@@ -15,12 +15,11 @@ export async function POST(request: NextRequest) {
     if (!idToken) {
       return NextResponse.json({error: 'ID token is required.'}, {status: 400});
     }
-
+    
     // Set session expiration to 14 days.
     const expiresIn = 60 * 60 * 24 * 14 * 1000;
-    const sessionCookie = await getAuth().createSessionCookie(idToken, {expiresIn});
+    const sessionCookie = await auth.createSessionCookie(idToken, {expiresIn});
     
-    // Create a response and set the cookie
     const response = NextResponse.json({success: true});
     response.cookies.set('session', sessionCookie, {
       maxAge: expiresIn,
