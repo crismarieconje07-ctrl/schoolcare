@@ -57,20 +57,16 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     };
     await setDoc(doc(firestore, "users", userRecord.uid), userProfile);
     
-    // 4. Manually sign in the user on the client after sign-up. 
-    // We cannot create a session cookie directly as we don't have the user's password on the client.
-    // The client-side logic will handle the session creation after this manual sign-in.
+    // 4. IMPORTANT: Do NOT sign the user in from the server action.
+    // The client should handle the sign-in flow after a successful sign-up.
+    // This server action's only job is to create the user and their profile.
     
     revalidatePath("/", "layout");
     
-    // After creating the user, we need the client to sign in to trigger onAuthStateChanged
-    // and create the session cookie.
-    const { auth: clientAuth } = initializeFirebase();
-    await signInWithEmailAndPassword(clientAuth, values.email, values.password);
-
     return { success: true };
   } catch (error: any) {
     let errorMessage = "An unknown error occurred during sign up.";
+    // Handle Firebase Admin SDK errors
     if (error.code) {
       switch (error.code) {
         case 'auth/email-already-exists':
@@ -80,9 +76,13 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
           errorMessage = "The password must be a string with at least six characters.";
           break;
         default:
-          errorMessage = error.message;
+           errorMessage = error.message || "Failed to sign up.";
           break;
       }
+    }
+     // Handle cases where the error is not a Firebase error
+    else if (error.message) {
+      errorMessage = error.message;
     }
     return { success: false, error: errorMessage };
   }

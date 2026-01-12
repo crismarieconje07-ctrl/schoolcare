@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { signUp } from "@/lib/actions";
+import { signUp, logIn } from "@/lib/actions";
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -42,15 +42,27 @@ export function SignUpForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const result = await signUp(values);
+    const signUpResult = await signUp(values);
     
-    if (result.success) {
-      router.push("/dashboard");
+    if (signUpResult.success) {
+      // After a successful sign-up, automatically log the user in
+      const logInResult = await logIn({ email: values.email, password: values.password });
+      if (logInResult.success) {
+        router.push("/dashboard");
+      } else {
+        // This case is unlikely but handled for completeness
+        toast({
+          variant: "destructive",
+          title: "Sign Up Successful, but Login Failed",
+          description: logInResult.error || "Please log in manually.",
+        });
+        router.push("/login");
+      }
     } else {
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
-        description: result.error || "An unknown error occurred.",
+        description: signUpResult.error || "An unknown error occurred.",
       });
     }
     setIsLoading(false);

@@ -2,8 +2,6 @@
 import { initializeApp, getApps, App, type ServiceAccount } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
-let app: App;
-
 export function initializeAdminApp() {
   const appName = 'firebase-admin-app';
   // Check if the app is already initialized to prevent errors
@@ -14,9 +12,9 @@ export function initializeAdminApp() {
 
   // Use applicationDefault() which is the standard for Google Cloud environments
   // like App Hosting. It automatically finds the service account credentials.
-  app = initializeApp({
+  const newApp = initializeApp({
      credential: credential.applicationDefault(),
   }, appName);
 
-  return app;
+  return newApp;
 }
