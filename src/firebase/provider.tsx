@@ -4,7 +4,7 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import type { UserProfile, UserRole } from '@/lib/types';
@@ -37,7 +37,7 @@ interface FirebaseProviderProps {
  * This function is crucial for fixing accounts that were partially created.
  */
 async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile | null> {
-  // Do not process anonymous users.
+  // This function should not be called for anonymous users, but we check again for safety.
   if (user.isAnonymous) {
     return null;
   }
@@ -90,8 +90,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        if (firebaseUser && !firebaseUser.isAnonymous) {
-          // User is logged in and is not anonymous
+        // ** CRITICAL FIX: If the user is anonymous, reject and sign out immediately. **
+        if (firebaseUser?.isAnonymous) {
+          await signOut(auth); // Actively sign out the anonymous user
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        if (firebaseUser) {
+          // User is logged in and is NOT anonymous
           const profile = await ensureUserProfile(firestore, firebaseUser);
 
           setUser(firebaseUser);
@@ -112,7 +121,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
           }
         } else {
-          // User is logged out or is anonymous
+          // User is logged out
           setUser(null);
           setUserProfile(null);
           // Clear session cookie
