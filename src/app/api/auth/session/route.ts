@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     const expiresIn = 60 * 60 * 24 * 14 * 1000;
     const sessionCookie = await getAuth().createSessionCookie(idToken, {expiresIn});
     
-    // Set cookie policy for session cookie.
-    cookies().set('session', sessionCookie, {
+    // Create a response and set the cookie
+    const response = NextResponse.json({success: true});
+    response.cookies.set('session', sessionCookie, {
       maxAge: expiresIn,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
     });
 
-    return NextResponse.json({success: true});
+    return response;
   } catch (error) {
     console.error('Error creating session cookie:', error);
     return NextResponse.json({error: 'Failed to create session.'}, {status: 500});
@@ -38,8 +39,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
     try {
-        cookies().delete('session');
-        return NextResponse.json({ success: true });
+        const response = NextResponse.json({ success: true });
+        response.cookies.set('session', '', {
+            maxAge: 0,
+            path: '/',
+        });
+        return response;
     } catch (error) {
         console.error('Error deleting session cookie:', error);
         return NextResponse.json({ error: 'Failed to clear session.' }, { status: 500 });
