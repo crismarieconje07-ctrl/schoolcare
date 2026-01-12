@@ -36,7 +36,12 @@ interface FirebaseProviderProps {
  * Ensures a user profile exists in Firestore. If not, it creates one.
  * This function is crucial for fixing accounts that were partially created.
  */
-async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile> {
+async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile | null> {
+  // Do not process anonymous users.
+  if (user.isAnonymous) {
+    return null;
+  }
+  
   const userDocRef = doc(firestore, "users", user.uid);
   try {
     const userDoc = await getDoc(userDocRef);
@@ -85,27 +90,29 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        if (firebaseUser) {
-          // User is logged in
-          setUser(firebaseUser);
+        if (firebaseUser && !firebaseUser.isAnonymous) {
+          // User is logged in and is not anonymous
           const profile = await ensureUserProfile(firestore, firebaseUser);
+
+          setUser(firebaseUser);
           setUserProfile(profile);
 
-          // Set session cookie
-          try {
-            const idToken = await firebaseUser.getIdToken(true);
-            await fetch('/api/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken }),
-            });
-          } catch (sessionError) {
-            console.error("Failed to set session cookie:", sessionError);
-            // Don't block login if session cookie fails, but log it.
+          if (profile) {
+            // Set session cookie only for valid, non-anonymous users with profiles
+            try {
+              const idToken = await firebaseUser.getIdToken(true);
+              await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken }),
+              });
+            } catch (sessionError) {
+              console.error("Failed to set session cookie:", sessionError);
+              // Don't block login if session cookie fails, but log it.
+            }
           }
-
         } else {
-          // User is logged out
+          // User is logged out or is anonymous
           setUser(null);
           setUserProfile(null);
           // Clear session cookie
