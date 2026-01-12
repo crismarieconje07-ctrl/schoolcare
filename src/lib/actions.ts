@@ -47,8 +47,9 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       displayName: values.displayName,
     });
 
-    // 3. Create the user profile document in Firestore
-    const role: UserRole = values.email === "admin@schoolcare.com" ? "admin" : "student";
+    // 3. Determine role and create the user profile document in Firestore
+    const role: UserRole = values.email?.toLowerCase() === "admin@schoolcare.com" ? "admin" : "student";
+    
     const userProfile: UserProfile = {
       uid: userRecord.uid,
       email: values.email,
@@ -56,11 +57,7 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       role: role,
     };
     await setDoc(doc(firestore, "users", userRecord.uid), userProfile);
-    
-    // 4. IMPORTANT: Do NOT sign the user in from the server action.
-    // The client should handle the sign-in flow after a successful sign-up.
-    // This server action's only job is to create the user and their profile.
-    
+
     revalidatePath("/", "layout");
     
     return { success: true };
@@ -79,11 +76,10 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
            errorMessage = error.message || "Failed to sign up.";
           break;
       }
-    }
-     // Handle cases where the error is not a Firebase error
-    else if (error.message) {
+    } else if (error.message) {
       errorMessage = error.message;
     }
+    console.error("Sign-up Error:", error);
     return { success: false, error: errorMessage };
   }
 }
