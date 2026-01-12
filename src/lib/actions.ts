@@ -3,10 +3,8 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile,
 } from "firebase/auth";
 import {
   addDoc,
@@ -25,6 +23,7 @@ import type { UserProfile, Category, UserRole } from "@/lib/types";
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from "./firebase-admin";
 import { cookies } from "next/headers";
+import { auth } from "firebase-admin";
 
 // --- Authentication Actions ---
 
@@ -35,34 +34,57 @@ const signUpSchema = z.object({
 });
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
-  const { auth, firestore } = initializeFirebase();
   try {
-    // 1. Create the user in Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      values.email,
-      values.password
-    );
-    const user = userCredential.user;
+    // 1. Initialize Admin App to perform privileged actions
+    const adminApp = initializeAdminApp();
+    const adminAuth = getAdminAuth(adminApp);
+    const { firestore } = initializeFirebase();
 
-    // 2. Update the auth profile's display name
-    await updateProfile(user, { displayName: values.displayName });
+    // 2. Create the user in Firebase Authentication using the Admin SDK
+    const userRecord = await adminAuth.createUser({
+      email: values.email,
+      password: values.password,
+      displayName: values.displayName,
+    });
 
     // 3. Create the user profile document in Firestore
     const role: UserRole = values.email === "admin@schoolcare.com" ? "admin" : "student";
     const userProfile: UserProfile = {
-      uid: user.uid,
+      uid: userRecord.uid,
       email: values.email,
       displayName: values.displayName,
       role: role,
     };
-    await setDoc(doc(firestore, "users", user.uid), userProfile);
+    await setDoc(doc(firestore, "users", userRecord.uid), userProfile);
+    
+    // 4. Manually sign in the user on the client after sign-up. 
+    // We cannot create a session cookie directly as we don't have the user's password on the client.
+    // The client-side logic will handle the session creation after this manual sign-in.
     
     revalidatePath("/", "layout");
     
-    return { success: true, user: user };
+    // After creating the user, we need the client to sign in to trigger onAuthStateChanged
+    // and create the session cookie.
+    const { auth: clientAuth } = initializeFirebase();
+    await signInWithEmailAndPassword(clientAuth, values.email, values.password);
+
+    return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    let errorMessage = "An unknown error occurred during sign up.";
+    if (error.code) {
+      switch (error.code) {
+        case 'auth/email-already-exists':
+          errorMessage = "This email address is already in use by another account.";
+          break;
+        case 'auth/invalid-password':
+          errorMessage = "The password must be a string with at least six characters.";
+          break;
+        default:
+          errorMessage = error.message;
+          break;
+      }
+    }
+    return { success: false, error: errorMessage };
   }
 }
 

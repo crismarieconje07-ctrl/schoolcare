@@ -47,14 +47,10 @@ export function SignUpForm() {
     if (result.success) {
       router.push("/dashboard");
     } else {
-      let errorMessage = result.error || "An unknown error occurred.";
-      if (errorMessage.includes('auth/email-already-in-use')) {
-        errorMessage = "This email address is already in use. Please try logging in.";
-      }
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
-        description: errorMessage,
+        description: result.error || "An unknown error occurred.",
       });
     }
     setIsLoading(false);
