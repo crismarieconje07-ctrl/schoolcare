@@ -182,7 +182,7 @@ export async function createReport(formData: FormData) {
     await setDoc(newReportRef, {
       id: newReportRef.id,
       userId: userId,
-      userDisplayName: userProfile.displayName || userProfile.email || "User",
+      userDisplayName: userProfile.displayName || userProfile.email || "Anonymous",
       category,
       roomNumber,
       description,
