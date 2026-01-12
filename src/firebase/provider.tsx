@@ -3,9 +3,9 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { FirebaseStorage } from 'firebase/storage';
+import { Firestore, doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
+import { Auth, User, onAuthStateChanged, signOut, getAuth } from 'firebase/auth';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import type { UserProfile, UserRole } from '@/lib/types';
 
@@ -20,6 +20,15 @@ export interface FirebaseContextState {
   loading: boolean;
   error: Error | null;
 }
+
+export function getSdks(firebaseApp: FirebaseApp) {
+  return {
+    auth: getAuth(firebaseApp),
+    firestore: getFirestore(firebaseApp),
+    storage: getStorage(firebaseApp),
+  };
+}
+
 
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
@@ -91,6 +100,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser?.isAnonymous) {
+          // Immediately sign out anonymous users and clear state.
           await signOut(auth);
           setUser(null);
           setUserProfile(null);

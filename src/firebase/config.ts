@@ -1,8 +1,14 @@
+import { initializeApp, getApps, getApp } from "firebase/app";
+
 export const firebaseConfig = {
-  "projectId": "studio-6574634930-513da",
-  "appId": "1:514805444088:web:72445471f4df1a233b7a0d",
-  "apiKey": "AIzaSyCPy7waw3CgJobAYkkgjww02RyaR61u4KQ",
-  "authDomain": "studio-6574634930-513da.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "514805444088"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
+
+// Prevent re-initialization on hot reload
+export const firebaseApp =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

@@ -1,26 +1,28 @@
+"use client";
 
-'use client';
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { firebaseConfig } from "./config";
+import { FirebaseProvider, getSdks } from "./provider";
+import { ReactNode } from "react";
 
-import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
+// Initialize the Firebase app
+const firebaseApp =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-interface FirebaseClientProviderProps {
-  children: ReactNode;
-}
+// Get the SDKs
+const { auth, firestore, storage } = getSdks(firebaseApp);
 
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
-  const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount.
-    return initializeFirebase();
-  }, []); // Empty dependency array ensures this runs only once on mount
-
+/**
+ * Provides Firebase services to the client-side application.
+ * This should be used at the root of the component tree.
+ */
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   return (
     <FirebaseProvider
-      firebaseApp={firebaseServices.firebaseApp}
-      auth={firebaseServices.auth}
-      firestore={firebaseServices.firestore}
-      storage={firebaseServices.storage}
+      firebaseApp={firebaseApp}
+      auth={auth}
+      firestore={firestore}
+      storage={storage}
     >
       {children}
     </FirebaseProvider>
