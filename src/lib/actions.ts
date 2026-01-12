@@ -135,8 +135,8 @@ const reportSchema = z.object({
 
 export async function createReport(formData: FormData) {
   try {
-    const { firestore, storage } = initializeFirebase();
     await initializeAdminApp();
+    const { firestore, storage } = initializeFirebase();
     
     const sessionCookie = cookies().get("session")?.value;
     if (!sessionCookie) {
@@ -199,7 +199,7 @@ export async function createReport(formData: FormData) {
 
   } catch (error: any) {
     console.error("createReport error:", error);
-    if (error.code === 'auth/session-cookie-expired' || error.code === 'auth/session-cookie-revoked') {
+    if (error.code === 'auth/session-cookie-expired' || error.code === 'auth/session-cookie-revoked' || error.code === 'auth/argument-error') {
       return { success: false, error: "Your session has expired. Please log in again." };
     }
     return { success: false, error: error.message || "Failed to create report." };

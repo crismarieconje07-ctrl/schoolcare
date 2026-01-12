@@ -92,12 +92,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           setUserProfile(profile);
 
           // Set session cookie
-          const idToken = await firebaseUser.getIdToken(true);
-          await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
+          try {
+            const idToken = await firebaseUser.getIdToken(true);
+            await fetch('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+            });
+          } catch (sessionError) {
+            console.error("Failed to set session cookie:", sessionError);
+            // Don't block login if session cookie fails, but log it.
+          }
 
         } else {
           // User is logged out
