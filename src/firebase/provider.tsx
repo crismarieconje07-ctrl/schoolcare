@@ -47,6 +47,8 @@ async function ensureUserProfile(firestore: Firestore, user: User): Promise<User
     if (userDoc.exists()) {
       return userDoc.data() as UserProfile;
     } else {
+      // This part might not be strictly necessary if signup creates the profile,
+      // but it's a good fallback.
       const role: UserRole = user.email === "admin@schoolcare.com" ? "admin" : "student";
       
       const newUserProfile: UserProfile = {
@@ -90,27 +92,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        if (firebaseUser?.isAnonymous) {
-          await signOut(auth);
-          setUser(null);
-          setUserProfile(null);
-        } else if (firebaseUser) {
+        if (firebaseUser) {
           const profile = await ensureUserProfile(firestore, firebaseUser);
           setUser(firebaseUser);
           setUserProfile(profile);
-
-          if (profile) {
-            const idToken = await firebaseUser.getIdToken(true);
-            await fetch('/api/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken }),
-            });
-          }
         } else {
           setUser(null);
           setUserProfile(null);
-          await fetch('/api/auth/session', { method: 'DELETE' });
         }
       } catch (e) {
           console.error("FirebaseProvider: Error during auth state change", e);

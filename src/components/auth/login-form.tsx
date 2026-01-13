@@ -49,15 +49,11 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
+      await signInWithEmailAndPassword(
         auth,
         values.email,
         values.password
       );
-
-      // Ensure fresh token
-      await userCredential.user.getIdToken(true);
-
       router.push("/dashboard");
     } catch (error: any) {
       toast({

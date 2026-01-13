@@ -1,21 +1,32 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { credential } from 'firebase-admin';
+import { initializeApp, getApps, App, ServiceAccount, cert } from 'firebase-admin/app';
 
 export function initializeAdminApp(): App {
   const appName = 'firebase-admin-app';
-  // Check if the app is already initialized to prevent errors
   const existingApp = getApps().find(app => app?.name === appName);
   if (existingApp) {
       return existingApp;
   }
 
-  // Use applicationDefault() which is the standard for Google Cloud environments
-  // like App Hosting. It automatically finds the service account credentials.
-  const newApp = initializeApp({
-     credential: credential.applicationDefault(),
-     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  }, appName);
+  try {
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccountString) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+    }
 
-  return newApp;
+    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountString);
+
+    const newApp = initializeApp({
+      credential: cert(serviceAccount),
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    }, appName);
+
+    return newApp;
+
+  } catch (error: any) {
+    console.error("Failed to initialize Firebase Admin SDK:", error.message);
+    // Re-throwing the error is important so that server actions fail loudly
+    // instead of proceeding with an uninitialized app.
+    throw new Error(`Firebase Admin SDK initialization failed: ${error.message}`);
+  }
 }

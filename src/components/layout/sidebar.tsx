@@ -22,7 +22,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { logOut } from "@/lib/actions";
+import { auth } from "@/firebase/client";
+import { signOut } from "firebase/auth";
 import { Logo } from "@/components/shared/logo";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,18 +35,18 @@ const AppSidebar = () => {
   const isAdmin = userProfile?.role === "admin";
 
   const handleLogout = async () => {
-    const result = await logOut();
-    if (result.success) {
+    try {
+      await signOut(auth);
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
       });
       router.push("/login");
-    } else {
-      toast({
+    } catch (error: any) {
+       toast({
         variant: "destructive",
         title: "Logout Failed",
-        description: result.error,
+        description: error.message,
       });
     }
   };

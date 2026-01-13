@@ -5,10 +5,10 @@ import { initializeAdminApp } from '@/lib/firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 
 export async function POST(request: NextRequest) {
-  const adminApp = initializeAdminApp();
-  const auth = getAuth(adminApp);
-
   try {
+    const adminApp = initializeAdminApp();
+    const auth = getAuth(adminApp);
+
     const body = await request.json();
     const idToken = body.idToken;
 

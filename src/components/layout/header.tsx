@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useFirebase } from "@/firebase";
-import { logOut } from "@/lib/actions";
+import { auth } from "@/firebase/client";
+import { signOut } from "firebase/auth";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -23,18 +24,18 @@ const AppHeader = () => {
   const { toast } = useToast();
 
   const handleLogout = async () => {
-    const result = await logOut();
-    if (result.success) {
+    try {
+      await signOut(auth);
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
       });
       router.push("/login");
-    } else {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Logout Failed",
-        description: result.error,
+        description: error.message,
       });
     }
   };

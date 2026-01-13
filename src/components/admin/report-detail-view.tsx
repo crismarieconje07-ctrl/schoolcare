@@ -4,7 +4,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { doc } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Report } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,8 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { PRIORITIES, STATUSES } from '@/lib/constants';
-import { updateReport } from '@/lib/actions';
 import { useState, useEffect } from 'react';
+import { db } from '@/firebase/client';
 
 interface ReportDetailProps {
   userId: string;
@@ -64,20 +64,20 @@ const ReportDetail = ({ userId, reportId }: ReportDetailProps) => {
   }, [report, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!report) return;
+    if (!reportRef) return;
     setIsSubmitting(true);
-    const result = await updateReport({
-        reportId: report.id,
-        userId: report.userId,
-        ...values,
-    });
-    setIsSubmitting(false);
-
-    if (result.success) {
-      toast({ title: "Report Updated", description: "The report details have been saved." });
-    } else {
-      toast({ variant: "destructive", title: "Update Failed", description: result.error });
+    
+    try {
+        await updateDoc(reportRef, {
+            ...values,
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Report Updated", description: "The report details have been saved." });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Update Failed", description: error.message });
     }
+
+    setIsSubmitting(false);
   }
 
 

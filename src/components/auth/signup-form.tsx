@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { signUp, logIn } from "@/lib/actions";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/firebase/client";
+import type { UserRole, UserProfile } from "@/lib/types";
+
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -42,30 +46,41 @@ export function SignUpForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const signUpResult = await signUp(values);
-    
-    if (signUpResult.success) {
-      // After a successful sign-up, automatically log the user in
-      const logInResult = await logIn({ email: values.email, password: values.password });
-      if (logInResult.success) {
-        router.push("/dashboard");
-      } else {
-        // This case is unlikely but handled for completeness
-        toast({
-          variant: "destructive",
-          title: "Sign Up Successful, but Login Failed",
-          description: logInResult.error || "Please log in manually.",
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Update user profile display name
+      await updateProfile(user, { displayName: values.displayName });
+
+      // Create user profile in Firestore
+      const role: UserRole = values.email.toLowerCase() === "admin@schoolcare.com" ? "admin" : "student";
+      const userProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email,
+        displayName: values.displayName,
+        role: role,
+      };
+      await setDoc(doc(db, "users", user.uid), userProfile);
+      
+      if (role === "admin") {
+        await setDoc(doc(db, "roles_admin", user.uid), {
+          email: values.email,
+          role: "admin",
         });
-        router.push("/login");
       }
-    } else {
+
+      router.push("/dashboard");
+
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
-        description: signUpResult.error || "An unknown error occurred.",
+        description: error.message || "An unknown error occurred.",
       });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   return (
