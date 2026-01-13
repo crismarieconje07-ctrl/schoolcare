@@ -1,4 +1,5 @@
-import { getApps, initializeApp, App } from "firebase-admin/app";
+
+import { getApps, initializeApp, App, ServiceAccount } from "firebase-admin/app";
 import { credential } from 'firebase-admin';
 
 export function initializeAdminApp(): App {
@@ -8,15 +9,27 @@ export function initializeAdminApp(): App {
     return existingApp;
   }
 
-  // Use applicationDefault() which is the standard for Google Cloud environments
-  // like App Hosting. It automatically finds the service account credentials.
+  // This is the robust way to handle credentials passed as a JSON string
+  // via an environment variable in App Hosting.
   try {
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccountString) {
+      throw new Error("The FIREBASE_SERVICE_ACCOUNT environment variable is not set. Please add it as a secret in your App Hosting backend configuration.");
+    }
+    
+    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountString);
+
     const newApp = initializeApp({
-      credential: credential.applicationDefault(),
+      credential: credential.cert(serviceAccount),
     }, appName);
+    
     return newApp;
+
   } catch (error: any) {
-    console.error("Failed to initialize Firebase Admin SDK with applicationDefault:", error.message);
-    throw new Error("Could not initialize Firebase Admin SDK. Ensure you are in a valid Google Cloud environment or have GOOGLE_APPLICATION_CREDENTIALS set.");
+    console.error("Failed to initialize Firebase Admin SDK. Error:", error.message);
+    if (error instanceof SyntaxError) {
+      throw new Error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid JSON string.");
+    }
+    throw new Error(`Could not initialize Firebase Admin SDK: ${error.message}`);
   }
 }
