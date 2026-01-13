@@ -1,35 +1,48 @@
 "use server";
 
-import { adminAuth, adminDb } from "@/firebase/firebase-admin";
-import { categorizeReport } from "@/ai/flows/categorize-report";
+import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
+import { adminAuth, adminDb } from "@/firebase/admin";
+import { categorizeReport } from "@/ai/flows/categorize-report";
 
-export async function createReport(formData: FormData) {
-  // Example: verify user if needed
-  // const user = await adminAuth.verifyIdToken(token);
+/* ----------------------------- AI ----------------------------- */
 
-  const description = formData.get("description") as string;
+const suggestCategorySchema = z.object({
+  description: z.string(),
+  photoDataUri: z.string().optional(),
+});
 
-  if (!description) {
-    throw new Error("Description is required");
+export async function suggestCategory(
+  values: z.infer<typeof suggestCategorySchema>
+) {
+  try {
+    const result = await categorizeReport(values);
+    return { success: true, category: result.suggestedCategory };
+  } catch {
+    return { success: false, error: "AI categorization failed" };
   }
+}
 
-  // Optional AI categorization
-  const category = await categorizeReport({ text: description });
+/* --------------------------- REPORTS --------------------------- */
 
-  const report = {
-    description,
-    category,
-    createdAt: Timestamp.now(),
-  };
+const createReportSchema = z.object({
+  category: z.string(),
+  description: z.string(),
+});
 
-  // Example path:
-  // users/{uid}/reports/{autoId}
+export async function createReport(values: z.infer<typeof createReportSchema>) {
+  const decoded = await adminAuth.verifyIdToken(values as any);
+
   await adminDb
     .collection("users")
-    .doc("REPLACE_WITH_UID")
+    .doc(decoded.uid)
     .collection("reports")
-    .add(report);
+    .add({
+      category: values.category,
+      description: values.description,
+      createdAt: Timestamp.now(),
+      status: "pending",
+    });
 
   return { success: true };
 }
