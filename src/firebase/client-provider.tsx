@@ -1,9 +1,20 @@
 "use client";
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { firebaseConfig } from "./config";
-import { FirebaseProvider, getSdks } from "./provider";
+import { FirebaseProvider } from "./provider";
 import { ReactNode } from "react";
+
+function getSdks(firebaseApp: FirebaseApp) {
+  return {
+    auth: getAuth(firebaseApp),
+    firestore: getFirestore(firebaseApp),
+    storage: getStorage(firebaseApp),
+  };
+}
 
 // Initialize the Firebase app
 const firebaseApp =
