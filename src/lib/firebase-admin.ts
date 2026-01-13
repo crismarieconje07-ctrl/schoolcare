@@ -14,6 +14,7 @@ export function initializeAdminApp(): App {
   // like App Hosting. It automatically finds the service account credentials.
   const newApp = initializeApp({
      credential: credential.applicationDefault(),
+     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   }, appName);
 
   return newApp;
