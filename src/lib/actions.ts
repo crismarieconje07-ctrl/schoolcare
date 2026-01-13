@@ -10,7 +10,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-import { initializeAdminApp } from "@/firebase/admin";
+import { initializeAdminApp } from "@/lib/firebase-admin";
 import type { UserProfile, UserRole } from "@/lib/types";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 
