@@ -81,7 +81,8 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
     return { success: true };
   } catch (error: any) {
     console.error(error);
-    return { success: false, error: "Sign up failed. This email might already be in use." };
+    // Return the actual Firebase error message for debugging
+    return { success: false, error: error.message || "An unknown sign-up error occurred." };
   }
 }
 
