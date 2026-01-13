@@ -1,3 +1,4 @@
+
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -67,11 +68,20 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
 
     await db.collection("users").doc(userRecord.uid).set(profile);
 
+    // If the user is an admin, also add them to the roles_admin collection
+    if (role === "admin") {
+      await db.collection("roles_admin").doc(userRecord.uid).set({
+        email: values.email,
+        role: "admin",
+      });
+    }
+
+
     revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
     console.error(error);
-    return { success: false, error: "Sign up failed" };
+    return { success: false, error: "Sign up failed. This email might already be in use." };
   }
 }
 
@@ -82,10 +92,13 @@ export async function logIn(values: z.infer<typeof logInSchema>) {
     const app = initializeAdminApp();
     const auth = getAuth(app);
 
-    const user = await auth.getUserByEmail(values.email);
-    const token = await auth.createCustomToken(user.uid);
+    // This part of the logic is handled client-side with session cookies.
+    // The server-side login is just to verify credentials.
+    // A successful verification doesn't require returning a token here
+    // because the client will set its own auth state and session cookie.
+    await auth.getUserByEmail(values.email);
 
-    return { success: true, token };
+    return { success: true };
   } catch {
     return { success: false, error: "Invalid credentials" };
   }
@@ -137,6 +150,7 @@ export async function createReport(formData: FormData) {
 
     const decoded = await auth.verifySessionCookie(sessionCookie, true);
     const userId = decoded.uid;
+    const user = await auth.getUser(userId);
 
     const parsed = reportSchema.safeParse({
       category: formData.get("category"),
@@ -151,7 +165,7 @@ export async function createReport(formData: FormData) {
     const photo = formData.get("photo") as File | null;
     let imageUrl: string | undefined;
 
-    if (photo) {
+    if (photo && photo.size > 0) {
       const buffer = Buffer.from(await photo.arrayBuffer());
       const filePath = `reports/${userId}/${Date.now()}_${photo.name}`;
       const bucket = storage.bucket();
@@ -161,7 +175,9 @@ export async function createReport(formData: FormData) {
         contentType: photo.type,
       });
 
-      imageUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      // Make the file public to get a URL
+      await file.makePublic();
+      imageUrl = file.publicUrl();
     }
 
     const reportRef = db
@@ -173,6 +189,7 @@ export async function createReport(formData: FormData) {
     await reportRef.set({
       id: reportRef.id,
       userId,
+      userDisplayName: user.displayName || user.email,
       ...parsed.data,
       imageUrl,
       status: "Pending",
