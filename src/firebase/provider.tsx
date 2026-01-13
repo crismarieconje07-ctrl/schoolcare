@@ -3,10 +3,10 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, signOut, getAuth } from 'firebase/auth';
-import { FirebaseStorage, getStorage } from 'firebase/storage';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
+import { FirebaseStorage } from 'firebase/storage';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { UserProfile, UserRole } from '@/lib/types';
 
 // Combined state for the Firebase context
@@ -21,15 +21,6 @@ export interface FirebaseContextState {
   error: Error | null;
 }
 
-export function getSdks(firebaseApp: FirebaseApp) {
-  return {
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp),
-    storage: getStorage(firebaseApp),
-  };
-}
-
-
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
@@ -43,10 +34,8 @@ interface FirebaseProviderProps {
 
 /**
  * Ensures a user profile exists in Firestore. If not, it creates one.
- * This function is crucial for fixing accounts that were partially created.
  */
 async function ensureUserProfile(firestore: Firestore, user: User): Promise<UserProfile | null> {
-  // This function should not be called for anonymous users, but we check again for safety.
   if (user.isAnonymous) {
     return null;
   }
@@ -56,10 +45,8 @@ async function ensureUserProfile(firestore: Firestore, user: User): Promise<User
     const userDoc = await getDoc(userDocRef);
 
     if (userDoc.exists()) {
-      // Profile exists, return it.
       return userDoc.data() as UserProfile;
     } else {
-      // Profile doesn't exist, so create it.
       const role: UserRole = user.email === "admin@schoolcare.com" ? "admin" : "student";
       
       const newUserProfile: UserProfile = {
@@ -74,9 +61,15 @@ async function ensureUserProfile(firestore: Firestore, user: User): Promise<User
     }
   } catch (error) {
       console.error("Error ensuring user profile exists:", error);
-      // If we fail here, we can't proceed with a profile.
       throw new Error("Could not create or retrieve user profile.");
   }
+}
+
+export function getSdks(firebaseApp: FirebaseApp) {
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
+  const storage = getStorage(firebaseApp);
+  return { firebaseApp, auth, firestore, storage };
 }
 
 /**
@@ -85,8 +78,8 @@ async function ensureUserProfile(firestore: Firestore, user: User): Promise<User
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
   firebaseApp,
-  firestore,
   auth,
+  firestore,
   storage,
 }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -94,42 +87,30 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Effect to subscribe to Firebase auth state changes and manage session cookie
   useEffect(() => {
-    setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser?.isAnonymous) {
-          // Immediately sign out anonymous users and clear state.
           await signOut(auth);
           setUser(null);
           setUserProfile(null);
-          setLoading(false);
-          return;
-        }
-
-        if (firebaseUser) {
+        } else if (firebaseUser) {
           const profile = await ensureUserProfile(firestore, firebaseUser);
-
           setUser(firebaseUser);
           setUserProfile(profile);
 
           if (profile) {
-            try {
-              const idToken = await firebaseUser.getIdToken(true);
-              await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken }),
-              });
-            } catch (sessionError) {
-              console.error("Failed to set session cookie:", sessionError);
-            }
+            const idToken = await firebaseUser.getIdToken(true);
+            await fetch('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+            });
           }
         } else {
           setUser(null);
           setUserProfile(null);
-           await fetch('/api/auth/session', { method: 'DELETE' });
+          await fetch('/api/auth/session', { method: 'DELETE' });
         }
       } catch (e) {
           console.error("FirebaseProvider: Error during auth state change", e);
@@ -191,7 +172,6 @@ export const useFirebaseApp = (): FirebaseApp | null => {
 
 /**
  * Hook specifically for accessing the authenticated user's state.
- * This provides the User object, loading status, and any auth errors.
  */
 export const useUser = (): { user: User | null, loading: boolean, error: Error | null } => {
   const { user, loading, error } = useFirebase();

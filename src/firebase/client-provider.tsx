@@ -1,48 +1,45 @@
+
 'use client';
 
-import React, { useState, useEffect, ReactNode } from 'react';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
-import { firebaseConfig } from './config';
+import { useState, useEffect, ReactNode } from 'react';
+import { FirebaseApp } from 'firebase/app';
+import { Auth } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { FirebaseStorage } from 'firebase/storage';
+import { initializeFirebase } from '@/firebase';
 import { FirebaseProvider } from './provider';
 
-// This function can be simplified as we initialize once
-function getSdks(app: FirebaseApp) {
-  return {
-    auth: getAuth(app),
-    firestore: getFirestore(app),
-    storage: getStorage(app),
-  };
+interface FirebaseClientProviderProps {
+  children: ReactNode;
 }
 
-export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const [sdks, setSdks] = useState<{
-    app: FirebaseApp;
+export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+  const [services, setServices] = useState<{
+    firebaseApp: FirebaseApp;
     auth: Auth;
     firestore: Firestore;
     storage: FirebaseStorage;
   } | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // This effect runs once on the client to initialize Firebase
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const { auth, firestore, storage } = getSdks(app);
-    setSdks({ app, auth, firestore, storage });
-  }, []); // Empty dependency array ensures this runs only once
+    if (typeof window !== 'undefined' && !isInitialized) {
+      const initializedServices = initializeFirebase();
+      setServices(initializedServices);
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
 
-  // Render nothing until Firebase is initialized on the client
-  if (!sdks) {
-    return null;
+  if (!isInitialized || !services) {
+    return null; // Or a loading spinner
   }
 
   return (
     <FirebaseProvider
-      firebaseApp={sdks.app}
-      auth={sdks.auth}
-      firestore={sdks.firestore}
-      storage={sdks.storage}
+      firebaseApp={services.firebaseApp}
+      auth={services.auth}
+      firestore={services.firestore}
+      storage={services.storage}
     >
       {children}
     </FirebaseProvider>
