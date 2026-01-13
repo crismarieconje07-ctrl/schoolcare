@@ -1,8 +1,8 @@
 
-import { initializeApp, getApps, App, type ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
-export function initializeAdminApp() {
+export function initializeAdminApp(): App {
   const appName = 'firebase-admin-app';
   // Check if the app is already initialized to prevent errors
   const existingApp = getApps().find(app => app?.name === appName);

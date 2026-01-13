@@ -21,6 +21,8 @@ import { categorizeReport } from "@/ai/flows/categorize-report";
 import { initializeFirebase } from "@/firebase/server";
 import type { UserProfile, Category, UserRole } from "@/lib/types";
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { getStorage as getAdminStorage } from 'firebase-admin/storage';
 import { initializeAdminApp } from "./firebase-admin";
 import { cookies } from "next/headers";
 import { auth } from "firebase-admin";
@@ -35,19 +37,17 @@ const signUpSchema = z.object({
 
 export async function signUp(values: z.infer<typeof signUpSchema>) {
   try {
-    // 1. Initialize Admin App to perform privileged actions
+    // Use ONLY the Admin SDK for server-side operations
     const adminApp = initializeAdminApp();
     const adminAuth = getAdminAuth(adminApp);
-    const { firestore } = initializeFirebase();
+    const adminFirestore = getAdminFirestore(adminApp);
 
-    // 2. Create the user in Firebase Authentication using the Admin SDK
     const userRecord = await adminAuth.createUser({
       email: values.email,
       password: values.password,
       displayName: values.displayName,
     });
 
-    // 3. Determine role and create the user profile document in Firestore
     const role: UserRole = values.email?.toLowerCase() === "admin@schoolcare.com" ? "admin" : "student";
     
     const userProfile: UserProfile = {
@@ -56,14 +56,13 @@ export async function signUp(values: z.infer<typeof signUpSchema>) {
       displayName: values.displayName,
       role: role,
     };
-    await setDoc(doc(firestore, "users", userRecord.uid), userProfile);
+    await adminFirestore.collection("users").doc(userRecord.uid).set(userProfile);
 
     revalidatePath("/", "layout");
     
     return { success: true };
   } catch (error: any) {
     let errorMessage = "An unknown error occurred during sign up.";
-    // Handle Firebase Admin SDK errors
     if (error.code) {
       switch (error.code) {
         case 'auth/email-already-exists':
@@ -150,15 +149,17 @@ const reportSchema = z.object({
 
 export async function createReport(formData: FormData) {
   try {
-    await initializeAdminApp();
-    const { firestore, storage } = initializeFirebase();
-    
+    const adminApp = initializeAdminApp();
+    const adminFirestore = getAdminFirestore(adminApp);
+    const adminStorage = getAdminStorage(adminApp);
+    const adminAuth = getAdminAuth(adminApp);
+
     const sessionCookie = cookies().get("session")?.value;
     if (!sessionCookie) {
       return { success: false, error: "Authentication token is missing. Please log in." };
     }
 
-    const decodedToken = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
     const userId = decodedToken.uid;
 
     const values = reportSchema.safeParse({
@@ -174,11 +175,9 @@ export async function createReport(formData: FormData) {
     const { category, roomNumber, description } = values.data;
     const photo = formData.get('photo') as File | null;
 
-    // Fetch user profile
-    const userDocRef = doc(firestore, "users", userId);
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
-      // This should ideally not happen if ensureUserProfile is working correctly
+    const userDocRef = adminFirestore.collection("users").doc(userId);
+    const userDoc = await userDocRef.get();
+    if (!userDoc.exists) {
       return { success: false, error: "User profile not found." };
     }
     const userProfile = userDoc.data() as UserProfile;
@@ -186,15 +185,16 @@ export async function createReport(formData: FormData) {
     let imageUrl: string | undefined = undefined;
     if (photo) {
       const photoBuffer = Buffer.from(await photo.arrayBuffer());
-      const storageRef = ref(storage, `reports/${userId}/${Date.now()}_${photo.name}`);
-      await uploadBytes(storageRef, photoBuffer, { contentType: photo.type });
-      imageUrl = await getDownloadURL(storageRef);
+      const filePath = `reports/${userId}/${Date.now()}_${photo.name}`;
+      const file = adminStorage.bucket().file(filePath);
+      await file.save(photoBuffer, { contentType: photo.type });
+      imageUrl = await getDownloadURL(ref(getAdminStorage(adminApp).app, filePath));
     }
 
-    const reportsCollection = collection(firestore, "users", userId, "reports");
-    const newReportRef = doc(reportsCollection);
+    const reportsCollection = adminFirestore.collection("users").doc(userId).collection("reports");
+    const newReportRef = reportsCollection.doc();
 
-    await setDoc(newReportRef, {
+    await newReportRef.set({
       id: newReportRef.id,
       userId: userId,
       userDisplayName: userProfile.displayName || userProfile.email || "Anonymous",
@@ -232,10 +232,11 @@ const updateReportSchema = z.object({
 
 
 export async function updateReport(values: z.infer<typeof updateReportSchema>) {
-    const { firestore } = initializeFirebase();
+    const adminApp = initializeAdminApp();
+    const adminFirestore = getAdminFirestore(adminApp);
   
   try {
-    const reportRef = doc(firestore, "users", values.userId, "reports", values.reportId);
+    const reportRef = adminFirestore.collection("users").doc(values.userId).collection("reports").doc(values.reportId);
     
     const updateData: any = {
       updatedAt: serverTimestamp(),
@@ -245,7 +246,7 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     if (values.priority) updateData.priority = values.priority;
     if (values.internalNotes !== undefined) updateData.internalNotes = values.internalNotes;
 
-    await updateDoc(reportRef, updateData);
+    await reportRef.update(updateData);
 
     revalidatePath("/dashboard/admin");
     revalidatePath(`/dashboard/admin/report/${values.userId}/${values.reportId}`);
@@ -256,3 +257,4 @@ export async function updateReport(values: z.infer<typeof updateReportSchema>) {
     return { success: false, error: "Failed to update report. " + error.message };
   }
 }
+
