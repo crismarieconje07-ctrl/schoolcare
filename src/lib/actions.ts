@@ -9,7 +9,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-import { initializeAdminApp } from "@/firebase/firebase-admin";
+import { initializeAdminApp } from "@/firebase/admin";
 import type { UserProfile, UserRole } from "@/lib/types";
 import { categorizeReport } from "@/ai/flows/categorize-report";
 
@@ -189,4 +189,38 @@ export async function createReport(formData: FormData) {
     console.error(error);
     return { success: false, error: "Failed to create report" };
   }
+}
+
+/* --------------------------- UPDATE REPORT --------------------------- */
+
+const updateReportSchema = z.object({
+    reportId: z.string(),
+    userId: z.string(),
+    status: z.enum(["Pending", "In Progress", "Completed"]),
+    priority: z.enum(["Low", "Moderate", "Urgent"]),
+    internalNotes: z.string().optional(),
+});
+
+export async function updateReport(values: z.infer<typeof updateReportSchema>) {
+    try {
+        const app = initializeAdminApp();
+        const db = getFirestore(app);
+
+        const { reportId, userId, ...updateData } = values;
+
+        const reportRef = db.collection("users").doc(userId).collection("reports").doc(reportId);
+        
+        await reportRef.update({
+            ...updateData,
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        revalidatePath(`/dashboard/admin/report/${userId}/${reportId}`);
+        revalidatePath("/dashboard/admin");
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating report:", error);
+        return { success: false, error: "Failed to update the report." };
+    }
 }
