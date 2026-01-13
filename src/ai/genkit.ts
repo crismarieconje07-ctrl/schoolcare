@@ -1,9 +1,10 @@
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
-const isDev = process.env.NODE_ENV !== "production";
+console.log("PROJECT:", process.env.GOOGLE_CLOUD_PROJECT);
+console.log("GENAI KEY:", process.env.GOOGLE_GENAI_API_KEY ? "FOUND" : "MISSING");
 
 export const ai = genkit({
-  plugins: isDev ? [googleAI()] : [],
-  model: isDev ? "googleai/gemini-2.5-flash" : undefined,
+  plugins: [googleAI()],
+  model: 'googleai/gemini-2.5-flash',
 });
