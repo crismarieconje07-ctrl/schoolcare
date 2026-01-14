@@ -1,12 +1,11 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useRef, ChangeEvent } from "react";
-import { Loader2, Upload, X } from "lucide-react";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,16 +25,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import Image from "next/image";
 
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useFirebase } from "@/firebase";
-import { db, storage } from "@/firebase/client";
+import { db } from "@/firebase/client";
 import { useToast } from "@/hooks/use-toast";
 import { suggestCategory } from "@/lib/actions";
 import { CATEGORIES } from "@/lib/constants";
+
+/* ---------------- SCHEMA (NO PHOTO) ---------------- */
 
 const reportSchema = z.object({
   category: z.enum(CATEGORIES.map(c => c.value) as [string, ...string[]], {
@@ -44,7 +41,6 @@ const reportSchema = z.object({
   }),
   roomNumber: z.string().min(1, "Room number is required"),
   description: z.string().min(10, "Please provide a detailed description."),
-  photo: z.any().optional(),
 });
 
 type ReportFormValues = z.infer<typeof reportSchema>;
@@ -54,11 +50,9 @@ export function ReportForm() {
   const router = useRouter();
   const { user } = useFirebase();
   const { toast } = useToast();
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportSchema),
@@ -69,91 +63,100 @@ export function ReportForm() {
     },
   });
 
-  const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      form.setValue("photo", file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  /* ---------------- AI CATEGORY SUGGESTION ---------------- */
 
   const handleSuggestCategory = async () => {
     const description = form.getValues("description");
+
     if (!description || description.length < 10) {
-      form.setError("description", { type: "manual", message: "Please enter a description (min. 10 characters) to get a suggestion."})
+      form.setError("description", {
+        type: "manual",
+        message: "Please enter at least 10 characters for AI suggestion.",
+      });
       return;
     }
 
     setIsSuggesting(true);
     try {
-      const result = await suggestCategory({ description, photoDataUri: preview || undefined });
+      const result = await suggestCategory({ description });
       if (result.success && result.category) {
         form.setValue("category", result.category, { shouldValidate: true });
-        toast({ title: "Suggestion Applied!", description: `We've set the category to "${result.category}".` });
+        toast({
+          title: "Category Suggested",
+          description: `Category set to "${result.category}"`,
+        });
       } else {
-        toast({ variant: "destructive", title: "Suggestion Failed", description: result.error });
+        toast({
+          variant: "destructive",
+          title: "Suggestion failed",
+          description: result.error || "Could not suggest a category.",
+        });
       }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Could not get a category suggestion." });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "AI Error",
+        description: "Failed to get category suggestion.",
+      });
     } finally {
       setIsSuggesting(false);
     }
   };
 
+  /* ---------------- SUBMIT REPORT ---------------- */
+
   async function onSubmit(values: ReportFormValues) {
     if (!user) {
-      toast({ variant: "destructive", title: "Not Authenticated", description: "You must be logged in to submit a report." });
+      toast({
+        variant: "destructive",
+        title: "Not logged in",
+        description: "Please log in to submit a report.",
+      });
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
-      let imageUrl: string | undefined;
-      if (values.photo) {
-        const photo = values.photo as File;
-        const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}_${photo.name}`);
-        const snapshot = await uploadBytes(storageRef, photo);
-        imageUrl = await getDownloadURL(snapshot.ref);
-      }
-      
       const reportData = {
-        ...values,
+        category: values.category,
+        roomNumber: values.roomNumber,
+        description: values.description,
         userId: user.uid,
         userDisplayName: user.displayName || user.email,
-        imageUrl,
         status: "Pending",
         priority: "Low",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      // @ts-ignore
-      delete reportData.photo;
 
-      const reportCollectionRef = collection(db, `users/${user.uid}/reports`);
-      const docRef = await addDoc(reportCollectionRef, reportData);
-      
-      // Update with the doc ID
-      await addDoc(reportCollectionRef, { ...reportData, id: docRef.id });
+      const reportsRef = collection(db, `users/${user.uid}/reports`);
+      await addDoc(reportsRef, reportData);
 
+      toast({
+        title: "Report submitted",
+        description: "Your report has been sent successfully.",
+      });
 
-      toast({ title: "Report Submitted", description: "Thank you for your submission." });
       router.push("/dashboard/submit-report/success");
-
     } catch (error: any) {
-      console.error("Report submission error:", error);
-      toast({ variant: "destructive", title: "Submission Failed", description: error.message || "An unexpected error occurred." });
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Submission failed",
+        description: error.message || "Unexpected error occurred.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  /* ---------------- UI ---------------- */
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+        {/* CATEGORY */}
         <FormField
           control={form.control}
           name="category"
@@ -178,7 +181,8 @@ export function ReportForm() {
             </FormItem>
           )}
         />
-        
+
+        {/* ROOM NUMBER */}
         <FormField
           control={form.control}
           name="roomNumber"
@@ -186,13 +190,14 @@ export function ReportForm() {
             <FormItem>
               <FormLabel>Room Number</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., 101, Gym, Library" {...field} />
+                <Input placeholder="e.g. 101, Gym, Library" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
+        {/* DESCRIPTION */}
         <FormField
           control={form.control}
           name="description"
@@ -202,91 +207,32 @@ export function ReportForm() {
               <FormControl>
                 <Textarea
                   placeholder="Describe the issue in detail..."
-                  {...field}
                   rows={5}
+                  {...field}
                 />
               </FormControl>
-              <FormDescription>
-                Provide as much detail as possible to help us resolve the issue quickly.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button 
-            type="button" 
-            variant="outline" 
-            size="sm"
-            onClick={handleSuggestCategory}
-            disabled={isSuggesting}
+
+        {/* AI BUTTON */}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleSuggestCategory}
+          disabled={isSuggesting}
         >
-            {isSuggesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Suggest Category with AI
+          {isSuggesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Suggest Category with AI
         </Button>
 
-        <FormField
-          control={form.control}
-          name="photo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Attach a Photo (Optional)</FormLabel>
-              <FormControl>
-                <>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handlePhotoChange}
-                  />
-                  {!preview && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Photo
-                    </Button>
-                  )}
-                </>
-              </FormControl>
-              {preview && (
-                <Card>
-                  <CardContent className="p-2 relative">
-                    <Image
-                      src={preview}
-                      alt="Preview"
-                      width={500}
-                      height={300}
-                      className="w-full h-auto rounded-md object-contain max-h-[300px]"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-7 w-7"
-                      onClick={() => {
-                        setPreview(null);
-                        form.setValue("photo", null);
-                        if(fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
+        {/* SUBMIT */}
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Submit Report
         </Button>
+
       </form>
     </Form>
   );
