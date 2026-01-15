@@ -1,43 +1,24 @@
 "use client";
 
-import {
-  collection,
-  collectionGroup,
-  onSnapshot,
-  query,
-  Query,
-  DocumentData,
-} from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "../client";
+import { onSnapshot, Query, DocumentData } from "firebase/firestore";
 
 type UseCollectionResult<T> = {
-  data: T[];
+  documents: T[];
   loading: boolean;
-  error: Error | null;
+  error: string | null;
 };
 
 export function useCollection<T = DocumentData>(
-  source: string | Query<DocumentData>,
-  isCollectionGroup = false
+  q: Query<DocumentData> | null
 ): UseCollectionResult<T> {
-  const [data, setData] = useState<T[]>([]);
+  const [documents, setDocuments] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let q: Query<DocumentData>;
-
-    try {
-      if (typeof source === "string") {
-        q = isCollectionGroup
-          ? query(collectionGroup(db, source))
-          : query(collection(db, source));
-      } else {
-        q = source;
-      }
-    } catch (err) {
-      setError(err as Error);
+    // ✅ HARD GUARD — prevents "_delegate in null" crash
+    if (!q) {
       setLoading(false);
       return;
     }
@@ -45,23 +26,23 @@ export function useCollection<T = DocumentData>(
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const results = snapshot.docs.map((doc) => ({
+        const data = snapshot.docs.map((doc) => ({
           id: doc.id,
-          path: doc.ref.path, // ✅ REQUIRED FOR ADMIN
-          ...(doc.data() as object),
+          ...doc.data(),
         })) as T[];
 
-        setData(results);
+        setDocuments(data);
         setLoading(false);
       },
       (err) => {
-        setError(err);
+        console.error(err);
+        setError("Failed to load data");
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [source, isCollectionGroup]);
+  }, [q]);
 
-  return { data, loading, error };
+  return { documents, loading, error };
 }
