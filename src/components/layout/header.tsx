@@ -11,15 +11,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useFirebase } from "@/firebase";
 import { auth } from "@/firebase/client";
 import { signOut } from "firebase/auth";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 
 const AppHeader = () => {
-  const { user, userProfile } = useFirebase();
+  const { user, userProfile } = useAuthProfile();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -40,7 +40,7 @@ const AppHeader = () => {
     }
   };
 
-  const getInitials = (name: string | null | undefined) => {
+  const getInitials = (name?: string) => {
     if (!name) return "U";
     return name
       .split(" ")
@@ -52,32 +52,29 @@ const AppHeader = () => {
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6 sticky top-0 z-30">
-        <SidebarTrigger className="md:hidden" />
-      <div className="flex-1">
-        {/* Can add breadcrumbs or page title here */}
-      </div>
+      <SidebarTrigger className="md:hidden" />
+      <div className="flex-1" />
+
       {user && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar className="h-10 w-10">
-                <AvatarImage
-                  src={user.photoURL || undefined}
-                  alt={userProfile?.displayName || ""}
-                />
+                <AvatarImage src={user.photoURL || undefined} />
                 <AvatarFallback>
                   {getInitials(userProfile?.displayName)}
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+
+          <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
+                <p className="text-sm font-medium">
                   {userProfile?.displayName}
                 </p>
-                <p className="text-xs leading-none text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {user.email}
                 </p>
               </div>

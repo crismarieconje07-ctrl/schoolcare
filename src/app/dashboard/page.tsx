@@ -1,63 +1,81 @@
-
 "use client";
 
-import UserReportsTable from '@/components/dashboard/user-reports-table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { useFirebase } from '@/firebase';
-import { CATEGORIES } from '@/lib/constants';
-import { CategoryIcon } from '@/components/shared/category-icon';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { Category } from '@/lib/types';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-const categoryColors: Record<Category, string> = {
-    chair: 'hsl(var(--category-chairs))',
-    fan: 'hsl(var(--category-fans))',
-    window: 'hsl(var(--category-windows))',
-    light: 'hsl(var(--category-lights))',
-    sanitation: 'hsl(var(--category-sanitation))',
-    other: 'hsl(var(--category-others))',
-};
+// 🔐 auth profile hook (already in your project)
+import { useAuthProfile } from "@/hooks/use-auth-profile";
+
+// 👉 My Reports
+import ReportsPage from "./reports/page";
+
+// 👉 categories
+import { CATEGORIES } from "@/lib/constants/categories";
+import { CategoryIcon } from "@/components/shared/category-icon";
+import type { Category } from "@/lib/types";
 
 export default function DashboardPage() {
-  const { userProfile, loading } = useFirebase();
+  const router = useRouter();
+  const { user, userProfile, loading } = useAuthProfile();
+
+  // redirect if logged out
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) return null;
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-10">
+      {/* ======================
+    GREETING HEADER
+====================== */}
+<div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+  <h1 className="text-3xl font-bold">
+    Hi, {userProfile?.displayName ?? "there"} 👋
+  </h1>
+  <p className="text-blue-100">
+    Report a facility issue
+  </p>
+</div>
+
+      {/* ======================
+    CATEGORIES
+====================== */}
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+  {CATEGORIES.map((category) => {
+    const Icon = category.icon;
+
+    return (
+      <button
+      key={`${category.value}-${category.label}`}
+        onClick={() =>
+          router.push(`/dashboard/submit-report?category=${category.value}`)
+        }
+        className="rounded-2xl p-6 flex flex-col items-center justify-center gap-3 shadow-sm transition hover:scale-[1.02]"
+        style={{ backgroundColor: category.color }}
+      >
+        {Icon && <Icon className="h-8 w-8 text-white" />}
+        <span className="text-white font-semibold">
+          {category.label}
+        </span>
+      </button>
+    );
+  })}
+</div>
+
+      {/* ======================
+          MY REPORTS
+      ====================== */}
       <div>
-        {loading ? (
-          <Skeleton className="h-9 w-48 mb-1" />
-        ) : (
-          <h1 className="text-3xl font-bold font-headline">
-            Hi, {userProfile?.displayName?.split(' ')[0] || 'there'}
-          </h1>
-        )}
-        <p className="text-muted-foreground">Report a facility issue</p>
-      </div>
+        <h2 className="text-2xl font-bold">My Reports</h2>
+        <p className="text-muted-foreground mb-4">
+          A list of all the reports you have submitted.
+        </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {CATEGORIES.map((category) => (
-          <Button
-            key={category.value}
-            className="h-24 flex-col gap-2 justify-center text-primary-foreground hover:text-primary-foreground/90 transition-all hover:opacity-90"
-            style={{ backgroundColor: categoryColors[category.value] }}
-            asChild
-          >
-            <Link href={`/dashboard/submit-report?category=${category.value}`}>
-              <CategoryIcon category={category.value} className="h-10 w-10 bg-transparent text-primary-foreground" />
-              <span className="text-sm font-medium">{category.label}</span>
-            </Link>
-          </Button>
-        ))}
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-bold font-headline">My Reports</h2>
-          <p className="text-muted-foreground">A list of all the reports you have submitted.</p>
-        </div>
-        <UserReportsTable />
+        <ReportsPage />
       </div>
     </div>
   );

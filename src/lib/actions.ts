@@ -1,48 +1,20 @@
 "use server";
 
-import { z } from "zod";
-import { Timestamp } from "firebase-admin/firestore";
-import { adminAuth, adminDb } from "@/firebase/admin";
-import { categorizeReport } from "@/ai/flows/categorize-report";
+import type { Category } from "@/lib/types";
 
-/* ----------------------------- AI ----------------------------- */
+export async function suggestCategory({
+  description,
+}: {
+  description: string;
+}): Promise<{ success: true; category: Category }> {
+  const text = description.toLowerCase();
 
-const suggestCategorySchema = z.object({
-  description: z.string(),
-  photoDataUri: z.string().optional(),
-});
+  if (text.includes("chair")) return { success: true, category: "chair" };
+  if (text.includes("fan")) return { success: true, category: "fan" };
+  if (text.includes("window")) return { success: true, category: "window" };
+  if (text.includes("light")) return { success: true, category: "light" };
+  if (text.includes("toilet") || text.includes("water"))
+    return { success: true, category: "sanitation" };
 
-export async function suggestCategory(
-  values: z.infer<typeof suggestCategorySchema>
-) {
-  try {
-    const result = await categorizeReport(values);
-    return { success: true, category: result.suggestedCategory };
-  } catch {
-    return { success: false, error: "AI categorization failed" };
-  }
-}
-
-/* --------------------------- REPORTS --------------------------- */
-
-const createReportSchema = z.object({
-  category: z.string(),
-  description: z.string(),
-});
-
-export async function createReport(values: z.infer<typeof createReportSchema>) {
-  const decoded = await adminAuth.verifyIdToken(values as any);
-
-  await adminDb
-    .collection("users")
-    .doc(decoded.uid)
-    .collection("reports")
-    .add({
-      category: values.category,
-      description: values.description,
-      createdAt: Timestamp.now(),
-      status: "pending",
-    });
-
-  return { success: true };
+  return { success: true, category: "other" };
 }

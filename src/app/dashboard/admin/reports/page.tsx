@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase/client";
+import Link from "next/link";
 
 type Report = {
   id: string;
-  title?: string;
-  status?: string;
+  [key: string]: any;
 };
 
 export default function AdminReportsPage() {
@@ -17,69 +16,43 @@ export default function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchReports() {
+    const fetchReports = async () => {
       try {
-        const q = query(
-          collection(db, "reports"),
-          orderBy("createdAt", "desc")
-        );
-
-        const snapshot = await getDocs(q);
-
-        const data = snapshot.docs.map(doc => ({
+        const snap = await getDocs(collection(db, "reports"));
+        const data = snap.docs.map((doc) => ({
           id: doc.id,
-          ...(doc.data() as Omit<Report, "id">),
+          ...doc.data(),
         }));
-
         setReports(data);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load reports");
+      } catch (err: any) {
+        console.error("Admin reports error:", err);
+        setError("You do not have permission to view reports.");
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchReports();
   }, []);
 
-  if (loading) {
-    return <p className="text-muted-foreground">Loading reports…</p>;
-  }
-
-  if (error) {
-    return <p className="text-red-500">{error}</p>;
-  }
+  if (loading) return <p>Loading reports…</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Reports</h1>
-        <p className="text-muted-foreground">
-          All submitted maintenance reports
-        </p>
-      </div>
+    <div className="space-y-4">
+      <h1 className="text-xl font-semibold">Admin Reports</h1>
 
-      {reports.length === 0 && (
-        <p className="text-muted-foreground">No reports found.</p>
-      )}
+      {reports.length === 0 && <p>No reports found.</p>}
 
-      <div className="space-y-4">
-        {reports.map(report => (
-          <Link
-            key={report.id}
-            href={`/dashboard/admin/report/${report.id}`}
-            className="block border rounded-lg p-4 hover:bg-muted transition"
-          >
-            <p className="font-medium">
-              {report.title ?? "Untitled Report"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Status: {report.status ?? "pending"}
-            </p>
-          </Link>
-        ))}
-      </div>
+      {reports.map((r) => (
+        <Link
+          key={r.id}
+          href={`/dashboard/admin/reports/${r.id}`}
+          className="block rounded border p-3 hover:bg-muted"
+        >
+          Report ID: {r.id}
+        </Link>
+      ))}
     </div>
   );
 }

@@ -1,47 +1,28 @@
+"use client";
 
-'use client';
+import { ReactNode, useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/firebase";
+import { initializeFirebase } from "@/firebase";
+import { FirebaseContext } from "./provider";
 
-import { useState, useEffect, ReactNode } from 'react';
-import { FirebaseApp } from 'firebase/app';
-import { Auth } from 'firebase/auth';
-import { Firestore } from 'firebase/firestore';
-import { FirebaseStorage } from 'firebase/storage';
-import { initializeFirebase } from '@/firebase';
-import { FirebaseProvider } from './provider';
-
-interface FirebaseClientProviderProps {
+interface Props {
   children: ReactNode;
 }
 
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
-  const [services, setServices] = useState<{
-    firebaseApp: FirebaseApp;
-    auth: Auth;
-    firestore: Firestore;
-    storage: FirebaseStorage;
-  } | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+export default function FirebaseClientProvider({ children }: Props) {
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isInitialized) {
-      const initializedServices = initializeFirebase();
-      setServices(initializedServices);
-      setIsInitialized(true);
-    }
-  }, [isInitialized]);
+    initializeFirebase();
 
-  if (!isInitialized || !services) {
-    return null; // Or a loading spinner
-  }
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
+  }, []);
 
   return (
-    <FirebaseProvider
-      firebaseApp={services.firebaseApp}
-      auth={services.auth}
-      firestore={services.firestore}
-      storage={services.storage}
-    >
+    <FirebaseContext.Provider value={{ user }}>
       {children}
-    </FirebaseProvider>
+    </FirebaseContext.Provider>
   );
 }

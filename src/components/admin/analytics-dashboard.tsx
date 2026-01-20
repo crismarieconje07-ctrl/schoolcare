@@ -1,9 +1,8 @@
-
 "use client";
 
-import { useMemo } from "react";
-import { collectionGroup, query } from "firebase/firestore";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useEffect, useMemo, useState } from "react";
+import { collectionGroup, getDocs } from "firebase/firestore";
+import { db } from "@/firebase/client";
 import type { Report, Category, Status } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,20 +17,28 @@ import {
   Cell,
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CATEGORIES } from "@/lib/constants";
 
 const AnalyticsDashboard = () => {
-  const firestore = useFirestore();
-  
-  const reportsQuery = useMemoFirebase(() => {
-    return query(collectionGroup(firestore, "reports"));
-  }, [firestore]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: reports, isLoading } = useCollection<Report>(reportsQuery);
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const snap = await getDocs(collectionGroup(db, "reports"));
+        setReports(
+          snap.docs.map((doc) => doc.data() as Report)
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   const categoryData = useMemo(() => {
-    if (!reports) return [];
-    const counts: { [key in Category]?: number } = {};
+    const counts: Partial<Record<Category, number>> = {};
     for (const report of reports) {
       counts[report.category] = (counts[report.category] || 0) + 1;
     }
@@ -39,8 +46,7 @@ const AnalyticsDashboard = () => {
   }, [reports]);
 
   const roomData = useMemo(() => {
-    if (!reports) return [];
-    const counts: { [key: string]: number } = {};
+    const counts: Record<string, number> = {};
     for (const report of reports) {
       counts[report.roomNumber] = (counts[report.roomNumber] || 0) + 1;
     }
@@ -51,8 +57,7 @@ const AnalyticsDashboard = () => {
   }, [reports]);
 
   const statusData = useMemo(() => {
-    if (!reports) return [];
-    const counts: { [key in Status]?: number } = {};
+    const counts: Partial<Record<Status, number>> = {};
     for (const report of reports) {
       counts[report.status] = (counts[report.status] || 0) + 1;
     }
@@ -67,15 +72,15 @@ const AnalyticsDashboard = () => {
     sanitation: "hsl(var(--category-sanitation))",
     other: "hsl(var(--category-others))",
   };
-  
+
   if (isLoading) {
     return (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Skeleton className="h-80" />
-            <Skeleton className="h-80" />
-            <Skeleton className="h-80" />
-        </div>
-    )
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
+      </div>
+    );
   }
 
   return (
@@ -91,15 +96,18 @@ const AnalyticsDashboard = () => {
                 data={categoryData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
                 outerRadius={80}
-                fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+                }
               >
                 {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={categoryColors[entry.name]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={categoryColors[entry.name]}
+                  />
                 ))}
               </Pie>
               <Tooltip />
@@ -107,6 +115,7 @@ const AnalyticsDashboard = () => {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Most Reported Rooms</CardTitle>
@@ -116,12 +125,13 @@ const AnalyticsDashboard = () => {
             <BarChart data={roomData} layout="vertical">
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={80} />
-              <Tooltip cursor={{ fill: 'hsl(var(--muted))' }}/>
+              <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
               <Bar dataKey="value" fill="hsl(var(--primary))" barSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Report Status Distribution</CardTitle>
@@ -131,8 +141,8 @@ const AnalyticsDashboard = () => {
             <BarChart data={statusData}>
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip cursor={{ fill: 'hsl(var(--muted))' }}/>
-              <Bar dataKey="value" fill="hsl(var(--accent))" barSize={40}/>
+              <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
+              <Bar dataKey="value" fill="hsl(var(--accent))" barSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
